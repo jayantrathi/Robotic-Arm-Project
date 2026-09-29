@@ -43,19 +43,27 @@ arm that I move by hand while the main arm copies it.
 **3. Added VR teleop.** I also set it up so I could drive the arm from a Meta Quest headset, as
 another way to move it around. (I had to find and fix a bug in the community VR code to get it
 working.)
-<!-- ![VR teleop](media/vr-teleop.gif) -->
+
+
+https://github.com/user-attachments/assets/821306a8-7681-43e2-94fe-b2c7e18cfcfd
+
+
 > _video: Quest driving the real arm_
 
 **4. Recorded demonstrations.** I moved the arm through the task by hand a bunch of times with a
 camera on the wrist, and labeled each recording with what I was doing. I spread the recordings
 across different objects and positions rather than doing hundreds of one thing, so the model had
 variety to learn from.
-<!-- ![recording](media/data-collection.gif) -->
+
+https://github.com/user-attachments/assets/e0f9535a-5df1-4ee4-8007-5f41407c10c4
+
+
 > _video: recording a demonstration_
 
 **5. Trained it.** First a smaller policy (ACT) to check the whole pipeline worked, then a
 fine-tuned SmolVLA model for the version that understands language. Training ran on a rented A100.
 <!-- ![training](media/training.gif) -->
+
 > _video: training / RunPod timelapse_
 
 **6. Ran it.** The trained model driving the arm on its own from a command, next to what the arm's
