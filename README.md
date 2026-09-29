@@ -1,11 +1,12 @@
 # Voice Controlled Robotic Arm
 
-You say what to pick up, and a cheap robotic arm finds it, grabs it, and drops it on the mat. It
-runs on an SO-101 arm I assembled myself and a fine-tuned vision-language-action model, all running
-on my laptop.
+I built a robot arm you can talk to. You tell it what to pick up, it finds the thing, grabs it, and
+drops it on the mat. The arm is a cheap SO-101 I put together myself, and the thing driving it is a
+vision-language model I fine-tuned. All of it runs on my laptop.
 
-<!-- Showcase video: in GitHub's web editor you can drag an mp4 onto this line to embed a player. -->
-**Showcase video: [add link once hosted]**
+<div align="center">
+  <video src="https://github.com/user-attachments/assets/726b167d-a6dd-4802-8a17-194a013c16bf" width="320" controls muted></video>
+</div>
 
 [Model](https://huggingface.co/jayantrathi/smolvla_lang_grasp_v1) ·
 [Dataset](https://huggingface.co/datasets/jayantrathi/lang_grasp_v1) ·
@@ -13,108 +14,108 @@ on my laptop.
 
 ## What it does
 
-You give it a command like "pick up the pen and drop it on the plate," typed or spoken. It finds the
-object, picks it up with a grip that suits it (a pinch for a pen, a squeeze for a soft toy), and
-drops it on the mat. It handles a few different objects, and it works wherever the object is sitting
-in the camera's view, not just one fixed spot. Everything runs on my laptop. Only the training was
-done on a rented GPU.
+You say something like "pick up the pen and drop it on the plate," either typed or out loud. It
+figures out where the pen is, picks it up with a grip that makes sense for it (a pinch for the pen,
+a squeeze for the bear), and drops it on the mat. It handles a handful of objects, and the object
+can be sitting anywhere the camera can see it, not just one taped-down spot. Everything runs on my
+laptop. The only thing that needed a real GPU was training.
 
-Voice commands go through `voice_grasp.py`, which uses Whisper to turn what I say into the command.
+Voice goes through `voice_grasp.py`, which runs Whisper to turn what I say into the command.
 
-## The build, step by step
+## How I got here
 
-I put this together one piece at a time, getting each part working before adding the next.
+I did this in stages, and I didn't move on until the previous part actually worked.
 
-**1. Started in simulation with RL.** I first tried this as a reinforcement learning project in a
-simulator. It was slow to train and fiddly to get working, so I switched to imitation learning,
-where the arm learns from example demonstrations instead of trial and error. That switch is what
-made everything after it practical.
+**Started in a simulator.** My first attempt was reinforcement learning in sim. It was slow and a
+pain to get anywhere with, so I gave up on it and switched to imitation learning, where the arm
+just copies demonstrations instead of figuring everything out by trial and error. That was the turn
+that actually got things moving.
 
-**2. Built the arm and got it moving.** A self-assembled SO-101 arm, driven by a second "leader"
-arm that I move by hand while the main arm copies it.
-<!-- ![basic teleop](media/basic-teleop.gif) -->
-> _video: first arm movements / leader-follower teleop_
+**Built the arm and got it moving.** It's a self-assembled SO-101. Early on I drove it with a
+second "leader" arm that I move by hand while the main arm mirrors it.
 
-**3. Added VR teleop.** I also set it up so I could drive the arm from a Meta Quest headset, as
-another way to move it around. (I had to find and fix a bug in the community VR code to get it
-working.)
-<!-- ![VR teleop](media/vr-teleop.gif) -->
-> _video: Quest driving the real arm_
+**Tried driving it in VR.** I also wired it up so I could move it from a Quest 2 headset. Fun, but
+too finicky to sit there and record hundreds of demos with, so I went back to the leader arm for
+the real data.
 
-**4. Recorded demonstrations.** I moved the arm through the task by hand a bunch of times with a
-camera on the wrist, and labeled each recording with what I was doing. I spread the recordings
-across different objects and positions rather than doing hundreds of one thing, so the model had
-variety to learn from.
-<!-- ![recording](media/data-collection.gif) -->
-> _video: recording a demonstration_
+<div align="center">
+  <video src="https://github.com/user-attachments/assets/821306a8-7681-43e2-94fe-b2c7e18cfcfd" width="320" controls muted></video>
+</div>
 
-**5. Trained it.** First a smaller policy (ACT) to check the whole pipeline worked, then a
-fine-tuned SmolVLA model for the version that understands language. Training ran on a rented A100.
-<!-- ![training](media/training.gif) -->
-> _video: training / RunPod timelapse_
+**Recorded a bunch of demos.** I moved the arm through the task by hand over and over with a camera
+on the wrist, and tagged each recording with what I was doing. I deliberately spread them across
+different objects and positions instead of grinding one thing a hundred times, so the model had
+some variety to work with.
 
-**6. Ran it.** The trained model driving the arm on its own from a command, next to what the arm's
-own camera sees.
-<!-- ![running](media/running.gif) -->
-> _video: an autonomous run, outside view and robot camera_
+<div align="center">
+  <video src="https://github.com/user-attachments/assets/e0f9535a-5df1-4ee4-8007-5f41407c10c4" width="320" controls muted></video>
+</div>
 
-## Setup
+**Trained it.** First a smaller policy (ACT) just to prove the pipeline worked end to end, then a
+fine-tuned SmolVLA model for the version that actually understands what I'm saying. Training ran on
+a rented A100.
 
-- **Arm:** a self-assembled SO-101 with Feetech serial-bus servos and a camera mounted on the wrist.
-- **Software:** Hugging Face LeRobot for recording, training, and running.
+<!-- drag your training timelapse mp4 here in GitHub's web editor -->
+
+**Ran it.** The trained model drives the arm on its own from a command. That's the clip at the top.
+
+## The setup
+
+- **Arm:** a self-assembled SO-101 with Feetech serial-bus servos and a camera on the wrist.
+- **Software:** Hugging Face LeRobot for recording, training, and running everything.
 - **Model:** SmolVLA, a 450M-parameter vision-language-action model, fine-tuned from the base
-  checkpoint. It takes the camera image, the arm's joint positions, and the spoken command, and
-  outputs the next moves.
+  checkpoint. It takes the camera image, the arm's joint positions, and the command, and spits out
+  the next moves.
 
-## How it was trained
+## Training details
 
-- About 90 recorded demonstrations across three objects (a soft bear, a pen, a small tube), each
-  labeled with its command, with the object placed in different spots.
-- Fine-tuned SmolVLA for 20k steps on one A100, roughly four hours. The trained model went up to the
-  Hugging Face Hub.
+- Around 90 demos across three objects (a soft bear, a pen, a small tube), each tagged with its
+  command, object moved around between recordings.
+- Fine-tuned SmolVLA for 20k steps on one A100, about four hours. Trained model is up on the Hugging
+  Face Hub.
 - Runs in real time on the laptop GPU.
 
-## What works
+## What works and what doesn't
 
-- It picks up the object you name, with a grip that fits it.
-- It works wherever the object is in the camera's view, not just one memorized spot.
-- It runs on its own, on the laptop, from a typed or spoken command.
+Works:
+- It grabs the object you asked for, with a grip that suits it.
+- It works wherever the object is in view, not just one memorized spot.
+- It runs by itself on the laptop, from a typed or spoken command.
 
-## What doesn't work yet
+Doesn't, yet:
+- **Two objects at once.** One object in the scene and it's solid. Put two down and it dithers,
+  because I only trained on single-object scenes, so it never had to use the words to choose between
+  them. Fixing this is next.
+- **Slippery stuff.** It reaches for a slick tube just fine but the gripper can lose its grip. That's
+  a grip problem, not a brain problem, and some rubber pads would sort it.
+- **One camera.** The wrist camera loses sight of the object right at the end of the reach, so the
+  grab gets less precise near the edges of the workspace.
 
-- **Two objects at once.** With one object in the scene it's reliable. Put two things in front of it
-  and it gets indecisive, because I only trained it on scenes with a single object, so it never
-  learned to use the command to pick between them. That's the next thing to fix.
-- **Slippery objects.** It reaches for a slick tube correctly but the gripper can lose its hold.
-  That's a grip problem, not a brain problem, and grippier pads would fix it.
-- **One camera.** The wrist camera loses sight of the object right at the end of the reach, which
-  makes the grab less precise at the edges of the workspace.
-
-## Files in this repo
+## What's in this repo
 
 ```
 README.md                 this file
 requirements.txt          dependencies
-voice_grasp.py            voice control (mic to Whisper to arm)
+voice_grasp.py            voice control (mic -> Whisper -> arm)
 scripts/record.sh         record demonstrations
 scripts/train_smolvla.sh  train the model on a GPU
 scripts/deploy.sh         run the model on the arm from a typed command
-media/                    videos and gifs used above
+media/                    videos used above
 ```
 
-The trained model and the recordings live on the Hugging Face Hub (linked at the top), not in here,
-since they are big files rather than code.
+The model and the recordings live on the Hugging Face Hub (linked up top), not in here, since
+they're big files, not code.
 
 ## Running it yourself
 
 ```bash
 pip install -r requirements.txt
 
-# 1. Record demonstrations (one object per batch, add --resume and a new label for the next)
+# 1. Record demos (one object per batch, add --resume and a new label for the next one)
 ./scripts/record.sh "Pick up the pen and drop it on the plate" 30
 ./scripts/record.sh "Pick up the bear and drop it on the plate" 30 --resume
 
-# 2. Train on a GPU (uploads the model when done)
+# 2. Train on a GPU (uploads the model when it's done)
 ./scripts/train_smolvla.sh
 
 # 3. Run it on the arm
@@ -124,23 +125,23 @@ pip install -r requirements.txt
 python voice_grasp.py
 ```
 
-## A few choices I made
+## A couple of decisions worth explaining
 
-- **Imitation learning over reinforcement learning**, because learning from a handful of
-  demonstrations is far more practical on a real arm than millions of trial-and-error attempts.
-- **Fine-tuning a pretrained model instead of one policy per object**, so adding a new object needs
-  a lot less data.
-- **Getting one object at one spot working first**, then position, then language, rather than trying
-  to do everything at once.
+- **Imitation learning instead of RL,** because copying a few demonstrations is way more practical
+  on a real arm than millions of trial-and-error attempts.
+- **Fine-tuning a pretrained model instead of one model per object,** so adding a new object takes a
+  lot less data.
+- **Getting one object at one spot rock solid first,** then position, then language, instead of
+  trying to do all of it at once.
 
 ## What's next
 
-1. Telling two objects apart, using an off-the-shelf object detector so it scales to new objects.
+1. Telling two objects apart, using an off-the-shelf object detector so it scales to new objects
+   without retraining.
 2. Turning to find an object that starts outside the camera's view.
-3. Keeping track of the object if I move it while it's reaching.
+3. Keeping track of the object if I move it mid-reach.
 4. Handing the object to my hand instead of dropping it on the mat.
 
-## Adding the videos
-
-For the slots above, either drop a short GIF into a `media/` folder and uncomment the matching
-`![...]` line, or open this README in GitHub's web editor and drag an mp4 onto the spot to embed it.
+<sub>To add a video: open this README in GitHub's web editor and drag an mp4 onto the spot. To keep
+portrait clips from stretching across the page, wrap them like the ones above:
+`<div align="center"><video src="URL" width="320" controls muted></video></div>`.</sub>
