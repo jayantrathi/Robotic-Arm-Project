@@ -1,8 +1,10 @@
 # Voice Controlled Robotic Arm
 
-I built a robot arm you can talk to. You tell it what to pick up, it finds the thing, grabs it, and
-drops it on the mat. The arm is a cheap SO-101 I put together myself, and the thing driving it is a
-vision-language model I fine-tuned. All of it runs on my laptop.
+I built a robot arm that picks up the object you ask it for. Right now I give it the command by
+typing it ("pick up the pen and drop it on the plate") and it finds the object, grabs it, and drops
+it on the mat. Voice is the goal and the next thing I'm adding: turning a spoken command into that
+same instruction with Whisper. The arm is a cheap SO-101 I put together myself, driven by a
+vision-language model I fine-tuned, and all of it runs on my laptop.
 
 <div align="center">
   <video src="https://github.com/user-attachments/assets/726b167d-a6dd-4802-8a17-194a013c16bf" width="320" controls muted></video>
@@ -14,13 +16,15 @@ vision-language model I fine-tuned. All of it runs on my laptop.
 
 ## What it does
 
-You say something like "pick up the pen and drop it on the plate," either typed or out loud. It
-figures out where the pen is, picks it up with a grip that makes sense for it (a pinch for the pen,
-a squeeze for the bear), and drops it on the mat. It handles a handful of objects, and the object
-can be sitting anywhere the camera can see it, not just one taped-down spot. Everything runs on my
-laptop. The only thing that needed a real GPU was training.
+You give it a command like "pick up the pen and drop it on the plate." It figures out where the pen
+is, picks it up with a grip that makes sense for it (a pinch for the pen, a squeeze for the bear),
+and drops it on the mat. It handles a handful of objects, and the object can be sitting anywhere the
+camera can see it, not just one taped-down spot. Everything runs on my laptop. The only thing that
+needed a real GPU was training.
 
-Voice goes through `voice_grasp.py`, which runs Whisper to turn what I say into the command.
+For now I type the command in. Wiring up spoken commands is the next piece: `voice_grasp.py` is
+written to do it (Whisper turns speech into the same command string), but I haven't recorded a real
+voice demo yet, so treat voice as coming-soon, not done.
 
 ## How I got here
 
@@ -52,8 +56,8 @@ some variety to work with.
 </div>
 
 **Trained it.** First a smaller policy (ACT) just to prove the pipeline worked end to end, then a
-fine-tuned SmolVLA model for the version that actually understands what I'm saying. Training ran on
-a rented A100.
+fine-tuned SmolVLA model for the version that actually understands the command. Training ran on a
+rented A100.
 
 <!-- drag your training timelapse mp4 here in GitHub's web editor -->
 
@@ -80,12 +84,14 @@ a rented A100.
 Works:
 - It grabs the object you asked for, with a grip that suits it.
 - It works wherever the object is in view, not just one memorized spot.
-- It runs by itself on the laptop, from a typed or spoken command.
+- It runs by itself on the laptop from a typed command.
 
-Doesn't, yet:
+Not yet:
+- **Voice.** Commands are typed for now. The Whisper script is written but I haven't recorded a
+  working voice demo, so this is the next thing.
 - **Two objects at once.** One object in the scene and it's solid. Put two down and it dithers,
   because I only trained on single-object scenes, so it never had to use the words to choose between
-  them. Fixing this is next.
+  them.
 - **Slippery stuff.** It reaches for a slick tube just fine but the gripper can lose its grip. That's
   a grip problem, not a brain problem, and some rubber pads would sort it.
 - **One camera.** The wrist camera loses sight of the object right at the end of the reach, so the
@@ -96,7 +102,7 @@ Doesn't, yet:
 ```
 README.md                 this file
 requirements.txt          dependencies
-voice_grasp.py            voice control (mic -> Whisper -> arm)
+voice_grasp.py            voice control (mic -> Whisper -> arm), written, not yet demoed
 scripts/record.sh         record demonstrations
 scripts/train_smolvla.sh  train the model on a GPU
 scripts/deploy.sh         run the model on the arm from a typed command
@@ -118,11 +124,8 @@ pip install -r requirements.txt
 # 2. Train on a GPU (uploads the model when it's done)
 ./scripts/train_smolvla.sh
 
-# 3. Run it on the arm
+# 3. Run it on the arm from a typed command
 ./scripts/deploy.sh "Pick up the pen and drop it on the plate"
-
-# or by voice
-python voice_grasp.py
 ```
 
 ## A couple of decisions worth explaining
@@ -131,16 +134,18 @@ python voice_grasp.py
   on a real arm than millions of trial-and-error attempts.
 - **Fine-tuning a pretrained model instead of one model per object,** so adding a new object takes a
   lot less data.
-- **Getting one object at one spot rock solid first,** then position, then language, instead of
+- **Getting one object at one spot rock solid first,** then position, then the command, instead of
   trying to do all of it at once.
 
 ## What's next
 
-1. Telling two objects apart, using an off-the-shelf object detector so it scales to new objects
+1. Voice: recording and wiring up the spoken-command version (the script's written, I just haven't
+   demoed it yet).
+2. Telling two objects apart, using an off-the-shelf object detector so it scales to new objects
    without retraining.
-2. Turning to find an object that starts outside the camera's view.
-3. Keeping track of the object if I move it mid-reach.
-4. Handing the object to my hand instead of dropping it on the mat.
+3. Turning to find an object that starts outside the camera's view.
+4. Keeping track of the object if I move it mid-reach.
+5. Handing the object to my hand instead of dropping it on the mat.
 
 <sub>To add a video: open this README in GitHub's web editor and drag an mp4 onto the spot. To keep
 portrait clips from stretching across the page, wrap them like the ones above:
