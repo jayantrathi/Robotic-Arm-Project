@@ -1,185 +1,146 @@
-<h1 align="center">Language-Controlled Robotic Arm</h1>
+# Voice Controlled Robotic Arm
 
-<p align="center">
-  <em>Say the name of an object, and a low-cost robotic arm finds it, grasps it the way that
-  object needs, and places it. Built on a self-assembled SO-101 arm and a fine-tuned
-  vision-language-action foundation model, running in real time on a laptop.</em>
-</p>
+You say what to pick up, and a cheap robotic arm finds it, grabs it, and drops it on the mat. It
+runs on an SO-101 arm I assembled myself and a fine-tuned vision-language-action model, all running
+on my laptop.
 
-<!-- HERO: drop your showcase video here. In GitHub's web editor you can drag-and-drop
-     the mp4 directly onto this line and it becomes an inline player. -->
-<p align="center">
-  <!-- ![showcase](media/showcase.gif) -->
-  <b>▶ Showcase video: [add link once hosted]</b>
-</p>
+<!-- Showcase video: in GitHub's web editor you can drag an mp4 onto this line to embed a player. -->
+**Showcase video: [add link once hosted]**
 
-<p align="center">
-  <a href="https://huggingface.co/jayantrathi/smolvla_lang_grasp_v1">Model</a> ·
-  <a href="https://huggingface.co/datasets/jayantrathi/lang_grasp_v1">Dataset</a> ·
-  <a href="#reproduce-the-full-pipeline">Reproduce</a>
-</p>
-
----
+[Model](https://huggingface.co/jayantrathi/smolvla_lang_grasp_v1) ·
+[Dataset](https://huggingface.co/datasets/jayantrathi/lang_grasp_v1) ·
+[How to run it](#running-it-yourself)
 
 ## What it does
 
-Given a spoken or typed command such as *"pick up the pen and drop it on the plate,"* the arm
-locates the named object, grasps it with a grip appropriate to that object (a pinch for a pen, a
-squeeze for a plush toy), and places it on a target zone. It works across multiple objects and
-generalizes to arbitrary object positions in the workspace, not a single fixed spot. All inference
-runs on-device on an Apple Silicon laptop; training was done on a rented cloud GPU.
+You give it a command like "pick up the pen and drop it on the plate," typed or spoken. It finds the
+object, picks it up with a grip that suits it (a pinch for a pen, a squeeze for a soft toy), and
+drops it on the mat. It handles a few different objects, and it works wherever the object is sitting
+in the camera's view, not just one fixed spot. Everything runs on my laptop. Only the training was
+done on a rented GPU.
 
-**Highlights**
-- Language-conditioned grasping: the instruction selects both the object and the grasp style.
-- Position generalization: the object can start anywhere the camera can see it.
-- Real-time, on-device inference from a fine-tuned 450M-parameter VLA.
-- Voice control via Whisper (`voice_grasp.py`).
-- Fully reproducible pipeline; dataset and model published to the Hugging Face Hub.
+Voice commands go through `voice_grasp.py`, which uses Whisper to turn what I say into the command.
 
----
+## The build, step by step
 
-## The journey
+I put this together one piece at a time, getting each part working before adding the next.
 
-This project was built up one capability at a time. Each stage was proven before the next was
-added, which is the through-line of the whole build.
+**1. Started in simulation with RL.** I first tried this as a reinforcement learning project in a
+simulator. It was slow to train and fiddly to get working, so I switched to imitation learning,
+where the arm learns from example demonstrations instead of trial and error. That switch is what
+made everything after it practical.
 
-### 1. From reinforcement learning in simulation to imitation learning on real hardware
-It started as a reinforcement-learning project in simulation (MuJoCo / Gymnasium). RL turned out to
-be sample-inefficient and slow to converge on this task, which motivated the switch to **imitation
-learning on real hardware**: instead of millions of trial-and-error steps, the policy learns from a
-modest number of human demonstrations. That pivot is the foundation of everything below.
+**2. Built the arm and got it moving.** A self-assembled SO-101 arm, driven by a second "leader"
+arm that I move by hand while the main arm copies it.
+<!-- ![basic teleop](media/basic-teleop.gif) -->
+> _video: first arm movements / leader-follower teleop_
 
-### 2. Building the arm and first teleoperation
-A self-assembled **SO-101** (SO-ARM101) arm with Feetech serial-bus servos, driven by a second
-"leader" arm in leader-follower teleoperation.
+**3. Added VR teleop.** I also set it up so I could drive the arm from a Meta Quest headset, as
+another way to move it around. (I had to find and fix a bug in the community VR code to get it
+working.)
+<!-- ![VR teleop](media/vr-teleop.gif) -->
+> _video: Quest driving the real arm_
 
-<!-- ![basic teleoperation](media/basic-teleop.gif) -->
-> _media: earliest arm movement / leader-follower teleop_
+**4. Recorded demonstrations.** I moved the arm through the task by hand a bunch of times with a
+camera on the wrist, and labeled each recording with what I was doing. I spread the recordings
+across different objects and positions rather than doing hundreds of one thing, so the model had
+variety to learn from.
+<!-- ![recording](media/data-collection.gif) -->
+> _video: recording a demonstration_
 
-### 3. VR teleoperation
-Teleoperating the arm from a Meta Quest headset over WebXR, as an alternative demonstration
-interface. (This included debugging and patching a bug in a community teleop repo.)
+**5. Trained it.** First a smaller policy (ACT) to check the whole pipeline worked, then a
+fine-tuned SmolVLA model for the version that understands language. Training ran on a rented A100.
+<!-- ![training](media/training.gif) -->
+> _video: training / RunPod timelapse_
 
-<!-- ![VR teleoperation](media/vr-teleop.gif) -->
-> _media: Quest driving the real arm_
-
-### 4. Collecting demonstrations
-Recording teleoperated pick-and-place demonstrations with a wrist-mounted camera, each labeled with
-a natural-language instruction. Data strategy was **breadth over depth**: a spread across objects
-and positions rather than hundreds of demos of one object, so the model's pretraining fills the gaps.
-
-<!-- ![data collection](media/data-collection.gif) -->
-> _media: leader-follower recording a demonstration_
-
-### 5. Training
-First an **ACT** (Action Chunking Transformer) policy from scratch to validate the pipeline, then a
-fine-tuned **SmolVLA** vision-language-action model for the language-conditioned version. Training
-ran on a rented A100.
-
-<!-- ![training timelapse](media/training.gif) -->
-> _media: training loss / RunPod timelapse_
-
-### 6. The policy running
-The trained policy driving the arm autonomously from a command, shown alongside the robot's own
-camera view.
-
+**6. Ran it.** The trained model driving the arm on its own from a command, next to what the arm's
+own camera sees.
 <!-- ![running](media/running.gif) -->
-> _media: autonomous run, external view + robot's-eye view_
+> _video: an autonomous run, outside view and robot camera_
 
----
+## Setup
 
-## System
+- **Arm:** a self-assembled SO-101 with Feetech serial-bus servos and a camera mounted on the wrist.
+- **Software:** Hugging Face LeRobot for recording, training, and running.
+- **Model:** SmolVLA, a 450M-parameter vision-language-action model, fine-tuned from the base
+  checkpoint. It takes the camera image, the arm's joint positions, and the spoken command, and
+  outputs the next moves.
 
-- **Hardware:** self-assembled SO-101 arm, Feetech STS3215 serial-bus servos, wrist-mounted
-  (eye-in-hand) USB camera.
-- **Software:** Hugging Face LeRobot for recording, training, and deployment.
-- **Policy:** SmolVLA, a ~450M-parameter vision-language-action model, fine-tuned from
-  `smolvla_base`. Inputs: camera image, joint state, and language instruction. Output: a chunk of
-  future actions.
+## How it was trained
 
-## Method
+- About 90 recorded demonstrations across three objects (a soft bear, a pen, a small tube), each
+  labeled with its command, with the object placed in different spots.
+- Fine-tuned SmolVLA for 20k steps on one A100, roughly four hours. The trained model went up to the
+  Hugging Face Hub.
+- Runs in real time on the laptop GPU.
 
-- **Data:** ~90 teleoperated demonstrations across three objects (plush bear, pen, tube), each
-  episode labeled with its instruction, objects placed at varied positions.
-- **Training:** fine-tuned `smolvla_base` for 20k steps on a single A100 (~4 hours); model pushed
-  to the Hub.
-- **Deployment:** real-time on the laptop GPU using LeRobot's real-time chunking (RTC) inference.
+## What works
 
-## Results
+- It picks up the object you name, with a grip that fits it.
+- It works wherever the object is in the camera's view, not just one memorized spot.
+- It runs on its own, on the laptop, from a typed or spoken command.
 
-- Reliable language-conditioned pick-and-place for the trained objects, with object-appropriate
-  grasps.
-- Position generalization across the camera's field of view.
-- Real-time autonomous execution on-device, from typed or spoken commands.
+## What doesn't work yet
 
-## Known limitations (honest)
+- **Two objects at once.** With one object in the scene it's reliable. Put two things in front of it
+  and it gets indecisive, because I only trained it on scenes with a single object, so it never
+  learned to use the command to pick between them. That's the next thing to fix.
+- **Slippery objects.** It reaches for a slick tube correctly but the gripper can lose its hold.
+  That's a grip problem, not a brain problem, and grippier pads would fix it.
+- **One camera.** The wrist camera loses sight of the object right at the end of the reach, which
+  makes the grab less precise at the edges of the workspace.
 
-- **Multi-object selection is not solved yet.** Reliable with one object in the scene; with two
-  objects present it becomes indecisive, because it was trained only on single-object scenes and
-  never had to use the instruction to disambiguate. This is the next milestone (see roadmap).
-- **Low-friction objects** can slip from the gripper. The reach and approach are correct; this is a
-  gripper-friction limit, addressable with friction pads.
-- **Single eye-in-hand camera** loses sight of the object during the final descent, which limits
-  precision at the edges of the workspace.
-
-## Repository contents
+## Files in this repo
 
 ```
 README.md                 this file
-requirements.txt          Python dependencies
-voice_grasp.py            voice control (mic -> Whisper -> policy)
-scripts/record.sh         record leader-follower demonstrations
-scripts/train_smolvla.sh  fine-tune SmolVLA on a GPU
-scripts/deploy.sh         run the policy on the arm for a typed command
-media/                    GIFs and clips used in this README
+requirements.txt          dependencies
+voice_grasp.py            voice control (mic to Whisper to arm)
+scripts/record.sh         record demonstrations
+scripts/train_smolvla.sh  train the model on a GPU
+scripts/deploy.sh         run the model on the arm from a typed command
+media/                    videos and gifs used above
 ```
 
-The trained model and dataset live on the Hugging Face Hub (linked above), not in this repo, since
-they are large artifacts rather than source.
+The trained model and the recordings live on the Hugging Face Hub (linked at the top), not in here,
+since they are big files rather than code.
 
-## Reproduce the full pipeline
+## Running it yourself
 
 ```bash
 pip install -r requirements.txt
 
-# 1. Record demonstrations (one object per batch; repeat with --resume + a new label)
+# 1. Record demonstrations (one object per batch, add --resume and a new label for the next)
 ./scripts/record.sh "Pick up the pen and drop it on the plate" 30
 ./scripts/record.sh "Pick up the bear and drop it on the plate" 30 --resume
-./scripts/record.sh "Pick up the lip balm and drop it on the plate" 30 --resume
 
-# 2. Fine-tune SmolVLA on a GPU (auto-pushes the model to the Hub)
+# 2. Train on a GPU (uploads the model when done)
 ./scripts/train_smolvla.sh
 
-# 3. Run it on the arm (typed command)
+# 3. Run it on the arm
 ./scripts/deploy.sh "Pick up the pen and drop it on the plate"
 
-# ...or by voice
+# or by voice
 python voice_grasp.py
 ```
 
-## Key design decisions
+## A few choices I made
 
-- **Imitation learning, not reinforcement learning** for sample efficiency on real hardware.
-- **A pretrained VLA, not a per-object policy**, so new objects need far less data than training
-  from scratch.
-- **Single-mode first, then generalize**: one object at one position, then position generalization,
-  then multiple objects with language labels.
+- **Imitation learning over reinforcement learning**, because learning from a handful of
+  demonstrations is far more practical on a real arm than millions of trial-and-error attempts.
+- **Fine-tuning a pretrained model instead of one policy per object**, so adding a new object needs
+  a lot less data.
+- **Getting one object at one spot working first**, then position, then language, rather than trying
+  to do everything at once.
 
-## Roadmap
+## What's next
 
-1. **Multi-object selection** via a zero-shot open-vocabulary detector, so selection generalizes to
-   new objects without retraining the grasp.
-2. **Off-frame search**: turn to find an object outside the current camera view.
-3. **Re-acquisition**: keep tracking the object if it is moved mid-grasp.
-4. **Hand handoff**: place the object into a detected human hand instead of a fixed zone.
-5. Grasp refinement (gripper friction pads, more object variety).
+1. Telling two objects apart, using an off-the-shelf object detector so it scales to new objects.
+2. Turning to find an object that starts outside the camera's view.
+3. Keeping track of the object if I move it while it's reaching.
+4. Handing the object to my hand instead of dropping it on the mat.
 
----
+## Adding the videos
 
-## Adding the media
-
-Two ways to add the clips referenced above:
-1. **GIFs** — put a short GIF in the `media/` folder and uncomment the matching `![...](media/....gif)`
-   line. GIFs render inline on GitHub automatically.
-2. **Videos** — open this README in GitHub's web editor and drag-and-drop an mp4 onto the spot; GitHub
-   hosts it and renders an inline player.
+For the slots above, either drop a short GIF into a `media/` folder and uncomment the matching
+`![...]` line, or open this README in GitHub's web editor and drag an mp4 onto the spot to embed it.
