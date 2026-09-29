@@ -5,7 +5,12 @@ runs on an SO-101 arm I assembled myself and a fine-tuned vision-language-action
 on my laptop.
 
 <!-- Showcase video: in GitHub's web editor you can drag an mp4 onto this line to embed a player. -->
-**Showcase video: [add link once hosted]**
+**Showcase video: *
+
+https://github.com/user-attachments/assets/726b167d-a6dd-4802-8a17-194a013c16bf
+
+
+*
 
 [Model](https://huggingface.co/jayantrathi/smolvla_lang_grasp_v1) ·
 [Dataset](https://huggingface.co/datasets/jayantrathi/lang_grasp_v1) ·
