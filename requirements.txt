@@ -1,0 +1,6 @@
+# Core: LeRobot with the SmolVLA policy and dataset tooling
+lerobot[smolvla,dataset]==0.6.1
+
+# Voice control (voice_grasp.py)
+openai-whisper
+sounddevice
