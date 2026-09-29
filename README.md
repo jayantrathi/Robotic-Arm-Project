@@ -1,69 +1,141 @@
-# Language-Controlled Robotic Arm (SO-101 + SmolVLA)
+<h1 align="center">Language-Controlled Robotic Arm</h1>
 
-A low-cost 6-DoF robotic arm that picks up an object you name and places it, driven
-by a fine-tuned vision-language-action (VLA) foundation model running in real time
-on a laptop.
+<p align="center">
+  <em>Say the name of an object, and a low-cost robotic arm finds it, grasps it the way that
+  object needs, and places it. Built on a self-assembled SO-101 arm and a fine-tuned
+  vision-language-action foundation model, running in real time on a laptop.</em>
+</p>
 
-**Demo:** _[add video link once hosted]_
-**Artifacts:** dataset `huggingface.co/datasets/jayantrathi/lang_grasp_v1` · model `huggingface.co/jayantrathi/smolvla_lang_grasp_v1`
+<!-- HERO: drop your showcase video here. In GitHub's web editor you can drag-and-drop
+     the mp4 directly onto this line and it becomes an inline player. -->
+<p align="center">
+  <!-- ![showcase](media/showcase.gif) -->
+  <b>▶ Showcase video: [add link once hosted]</b>
+</p>
 
-## What it does today
+<p align="center">
+  <a href="https://huggingface.co/jayantrathi/smolvla_lang_grasp_v1">Model</a> ·
+  <a href="https://huggingface.co/datasets/jayantrathi/lang_grasp_v1">Dataset</a> ·
+  <a href="#reproduce-the-full-pipeline">Reproduce</a>
+</p>
 
-Given a natural-language command such as "pick up the pen and drop it on the plate,"
-the arm locates the named object, grasps it with a grip appropriate to that object,
-and places it on a target zone. It works across three objects (a plush bear, a pen,
-and a moisturizer tube) and generalizes to arbitrary object positions in the
-workspace, not a single fixed spot. Inference runs on-device on an Apple Silicon
-laptop; training was done on a rented cloud GPU. Commands can be typed or spoken
-(via `voice_grasp.py`, which uses Whisper for speech-to-text).
+---
+
+## What it does
+
+Given a spoken or typed command such as *"pick up the pen and drop it on the plate,"* the arm
+locates the named object, grasps it with a grip appropriate to that object (a pinch for a pen, a
+squeeze for a plush toy), and places it on a target zone. It works across multiple objects and
+generalizes to arbitrary object positions in the workspace, not a single fixed spot. All inference
+runs on-device on an Apple Silicon laptop; training was done on a rented cloud GPU.
+
+**Highlights**
+- Language-conditioned grasping: the instruction selects both the object and the grasp style.
+- Position generalization: the object can start anywhere the camera can see it.
+- Real-time, on-device inference from a fine-tuned 450M-parameter VLA.
+- Voice control via Whisper (`voice_grasp.py`).
+- Fully reproducible pipeline; dataset and model published to the Hugging Face Hub.
+
+---
+
+## The journey
+
+This project was built up one capability at a time. Each stage was proven before the next was
+added, which is the through-line of the whole build.
+
+### 1. From reinforcement learning in simulation to imitation learning on real hardware
+It started as a reinforcement-learning project in simulation (MuJoCo / Gymnasium). RL turned out to
+be sample-inefficient and slow to converge on this task, which motivated the switch to **imitation
+learning on real hardware**: instead of millions of trial-and-error steps, the policy learns from a
+modest number of human demonstrations. That pivot is the foundation of everything below.
+
+### 2. Building the arm and first teleoperation
+A self-assembled **SO-101** (SO-ARM101) arm with Feetech serial-bus servos, driven by a second
+"leader" arm in leader-follower teleoperation.
+
+<!-- ![basic teleoperation](media/basic-teleop.gif) -->
+> _media: earliest arm movement / leader-follower teleop_
+
+### 3. VR teleoperation
+Teleoperating the arm from a Meta Quest headset over WebXR, as an alternative demonstration
+interface. (This included debugging and patching a bug in a community teleop repo.)
+
+<!-- ![VR teleoperation](media/vr-teleop.gif) -->
+> _media: Quest driving the real arm_
+
+### 4. Collecting demonstrations
+Recording teleoperated pick-and-place demonstrations with a wrist-mounted camera, each labeled with
+a natural-language instruction. Data strategy was **breadth over depth**: a spread across objects
+and positions rather than hundreds of demos of one object, so the model's pretraining fills the gaps.
+
+<!-- ![data collection](media/data-collection.gif) -->
+> _media: leader-follower recording a demonstration_
+
+### 5. Training
+First an **ACT** (Action Chunking Transformer) policy from scratch to validate the pipeline, then a
+fine-tuned **SmolVLA** vision-language-action model for the language-conditioned version. Training
+ran on a rented A100.
+
+<!-- ![training timelapse](media/training.gif) -->
+> _media: training loss / RunPod timelapse_
+
+### 6. The policy running
+The trained policy driving the arm autonomously from a command, shown alongside the robot's own
+camera view.
+
+<!-- ![running](media/running.gif) -->
+> _media: autonomous run, external view + robot's-eye view_
+
+---
 
 ## System
 
-- **Hardware:** a self-assembled SO-101 (SO-ARM101) arm with Feetech serial-bus
-  servos and a wrist-mounted (eye-in-hand) USB camera. Leader-follower teleoperation
-  was used to collect demonstrations.
-- **Software:** Hugging Face LeRobot for data recording, training, and deployment.
-- **Policy:** SmolVLA, a ~450M-parameter vision-language-action model, fine-tuned
-  from the `smolvla_base` checkpoint. The model takes the camera image, the arm's
-  joint state, and the language instruction, and outputs a chunk of future actions.
+- **Hardware:** self-assembled SO-101 arm, Feetech STS3215 serial-bus servos, wrist-mounted
+  (eye-in-hand) USB camera.
+- **Software:** Hugging Face LeRobot for recording, training, and deployment.
+- **Policy:** SmolVLA, a ~450M-parameter vision-language-action model, fine-tuned from
+  `smolvla_base`. Inputs: camera image, joint state, and language instruction. Output: a chunk of
+  future actions.
 
 ## Method
 
-- **Data (breadth over depth):** ~90 teleoperated demonstrations across the three
-  objects, each episode labeled with its language instruction, with the object placed
-  at varied positions. Rather than hundreds of demos of a single object, coverage was
-  spread across objects and positions so the model's pretraining could fill the gaps.
-- **Training:** fine-tuned `smolvla_base` for 20k steps on a single A100 (about four
-  hours). The trained model was pushed to the Hugging Face Hub.
-- **Deployment:** run in real time on the laptop GPU using LeRobot's real-time
-  chunking (RTC) inference to keep motion smooth despite the model running below
-  camera frame rate.
+- **Data:** ~90 teleoperated demonstrations across three objects (plush bear, pen, tube), each
+  episode labeled with its instruction, objects placed at varied positions.
+- **Training:** fine-tuned `smolvla_base` for 20k steps on a single A100 (~4 hours); model pushed
+  to the Hub.
+- **Deployment:** real-time on the laptop GPU using LeRobot's real-time chunking (RTC) inference.
 
-## Voice control
+## Results
 
-`voice_grasp.py` adds spoken commands: it records a few seconds from the microphone,
-transcribes with Whisper, maps the spoken keyword (pen / bear / lip balm) to the exact
-instruction the policy was trained on, and launches the rollout. Run it with:
+- Reliable language-conditioned pick-and-place for the trained objects, with object-appropriate
+  grasps.
+- Position generalization across the camera's field of view.
+- Real-time autonomous execution on-device, from typed or spoken commands.
 
-```bash
-pip install openai-whisper sounddevice
-python voice_grasp.py
-```
+## Known limitations (honest)
+
+- **Multi-object selection is not solved yet.** Reliable with one object in the scene; with two
+  objects present it becomes indecisive, because it was trained only on single-object scenes and
+  never had to use the instruction to disambiguate. This is the next milestone (see roadmap).
+- **Low-friction objects** can slip from the gripper. The reach and approach are correct; this is a
+  gripper-friction limit, addressable with friction pads.
+- **Single eye-in-hand camera** loses sight of the object during the final descent, which limits
+  precision at the edges of the workspace.
 
 ## Repository contents
 
 ```
 README.md                 this file
 requirements.txt          Python dependencies
-voice_grasp.py            voice-commanded control (mic -> Whisper -> policy)
+voice_grasp.py            voice control (mic -> Whisper -> policy)
 scripts/record.sh         record leader-follower demonstrations
 scripts/train_smolvla.sh  fine-tune SmolVLA on a GPU
 scripts/deploy.sh         run the policy on the arm for a typed command
+media/                    GIFs and clips used in this README
 ```
 
-The trained model and dataset are hosted on the Hugging Face Hub (linked above),
-not committed to this repo (they are ~1 GB of weights and video, and are artifacts
-rather than source).
+The trained model and dataset live on the Hugging Face Hub (linked above), not in this repo, since
+they are large artifacts rather than source.
 
 ## Reproduce the full pipeline
 
@@ -75,7 +147,7 @@ pip install -r requirements.txt
 ./scripts/record.sh "Pick up the bear and drop it on the plate" 30 --resume
 ./scripts/record.sh "Pick up the lip balm and drop it on the plate" 30 --resume
 
-# 2. Fine-tune SmolVLA on a GPU (e.g. a rented A100), auto-pushes the model to the Hub
+# 2. Fine-tune SmolVLA on a GPU (auto-pushes the model to the Hub)
 ./scripts/train_smolvla.sh
 
 # 3. Run it on the arm (typed command)
@@ -87,43 +159,27 @@ python voice_grasp.py
 
 ## Key design decisions
 
-- **Imitation learning, not reinforcement learning.** RL is sample-inefficient and
-  painful on real hardware; imitation learning fits a policy from a modest number of
-  human demonstrations, which is far more practical on a physical arm. (An earlier
-  from-scratch RL project in simulation motivated this switch.)
-- **A pretrained VLA, not a per-object policy.** Training a separate policy per object
-  does not scale. Fine-tuning a pretrained vision-language model adapts general
-  object, grasp, and language knowledge to this specific arm with far less data.
-- **Single-mode first, then generalize.** The task was built up one variable at a
-  time: first a reliable grasp of one object at one position, then position
-  generalization, then multiple objects with language labels. Each stage was proven
-  before adding the next.
-
-## Results
-
-- Reliable language-conditioned pick-and-place for the trained objects, with
-  object-appropriate grasps (a pinch for the pen, a squeeze for the bear).
-- Position generalization: the object can start anywhere in the camera's view, not a
-  memorized location.
-- Real-time autonomous execution on-device, from typed or spoken commands.
-
-## Known limitations (honest)
-
-- **Multi-object selection is not solved yet.** With a single object in the scene the
-  system is reliable, but when two objects are present at once it becomes indecisive,
-  because it was trained only on single-object scenes and never had to use the
-  instruction to disambiguate among distractors. This is the next milestone.
-- **Low-friction objects.** The reach and approach are correct for all objects, but a
-  slippery tube can slip from the gripper. This is a gripper-friction limitation, not
-  a perception or policy failure; friction pads on the fingers would address it.
-- **Single eye-in-hand camera.** The wrist camera loses sight of the object during the
-  final descent, which limits precision at the edges of the workspace.
+- **Imitation learning, not reinforcement learning** for sample efficiency on real hardware.
+- **A pretrained VLA, not a per-object policy**, so new objects need far less data than training
+  from scratch.
+- **Single-mode first, then generalize**: one object at one position, then position generalization,
+  then multiple objects with language labels.
 
 ## Roadmap
 
-1. **Multi-object selection via a zero-shot open-vocabulary detector.** Offload "which
-   object" to a detector (for example OWL-ViT or YOLO-World) that finds the named
-   object with no additional training, isolate it, and hand the grasp to the existing
-   policy. This scales to new objects for free rather than retraining per object.
-2. **Grasp refinement.** Gripper friction pads and additional object variety.
-3. **Extended voice interaction** building on `voice_grasp.py`.
+1. **Multi-object selection** via a zero-shot open-vocabulary detector, so selection generalizes to
+   new objects without retraining the grasp.
+2. **Off-frame search**: turn to find an object outside the current camera view.
+3. **Re-acquisition**: keep tracking the object if it is moved mid-grasp.
+4. **Hand handoff**: place the object into a detected human hand instead of a fixed zone.
+5. Grasp refinement (gripper friction pads, more object variety).
+
+---
+
+## Adding the media
+
+Two ways to add the clips referenced above:
+1. **GIFs** — put a short GIF in the `media/` folder and uncomment the matching `![...](media/....gif)`
+   line. GIFs render inline on GitHub automatically.
+2. **Videos** — open this README in GitHub's web editor and drag-and-drop an mp4 onto the spot; GitHub
+   hosts it and renders an inline player.
