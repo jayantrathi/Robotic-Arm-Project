@@ -1,7 +1,7 @@
 # Voice Controlled Robotic Arm
 
 I built a robot arm that picks up the object you ask it for. You can type the command or **say it**
-("grab the pen") and it finds the object, grabs it, and drops it on the mat. It can pick the right
+("grab the pen") and it finds the object, grabs it, and drops it on the coaster. It can pick the right
 object out of a scene with **several objects**, and if the thing you asked for isn't even in the
 camera's view it will **pan around to look for it** first. The arm is a SO-101 I put together
 myself, driven by a vision-language model I fine-tuned, and all of it runs on my laptop.
@@ -18,8 +18,8 @@ myself, driven by a vision-language model I fine-tuned, and all of it runs on my
 
 You give it a command like "pick up the pen and drop it on the plate." It figures out where the pen
 is, picks it up with a grip that makes sense for it (a pinch for the pen, a squeeze for the bear),
-and drops it on the mat. It handles a handful of objects, and the object can be sitting anywhere the
-camera can see it, not just one taped-down spot. Everything runs on my laptop. The only thing that
+and drops it on the coaster. It handles a handful of objects, and the object can be sitting anywhere the
+camera can see it, not just one specific spot. Everything runs on my laptop. The only thing that
 needed a real GPU was training.
 
 On top of the core grasp policy I added a perception layer (an open-vocabulary detector) that does
@@ -66,7 +66,7 @@ meant *place*, not *pick*, in training). Widening that is the next retrain — s
 
 ## How I got here
 
-I did this in stages, and I didn't move on until the previous part actually worked.
+I did this in stages:
 
 **Started in a simulator.** My first attempt was reinforcement learning in sim. It was slow and a
 pain to get anywhere with, so I gave up on it and switched to imitation learning, where the arm
@@ -76,9 +76,9 @@ that actually got things moving.
 **Built the arm and got it moving.** It's a self-assembled SO-101. Early on I drove it with a
 second "leader" arm that I move by hand while the main arm mirrors it.
 
-**Tried driving it in VR.** I also wired it up so I could move it from a Quest 2 headset. Fun, but
+**Tried driving it in VR.** I also wired it up so I could move it from a Quest 2 headset. Definitely interesting to see work, but
 too finicky to sit there and record hundreds of demos with, so I went back to the leader arm for
-the real data.
+the real data recording.
 
 <div align="center">
   <video src="https://github.com/user-attachments/assets/821306a8-7681-43e2-94fe-b2c7e18cfcfd" width="320" controls muted></video>
@@ -86,16 +86,15 @@ the real data.
 
 **Recorded a bunch of demos.** I moved the arm through the task by hand over and over with a camera
 on the wrist, and tagged each recording with what I was doing. I deliberately spread them across
-different objects and positions instead of grinding one thing a hundred times, so the model had
-some variety to work with.
+different objects and positions so the model had some variety to work with when faced with a new situation.
 
 <div align="center">
   <video src="https://github.com/user-attachments/assets/e0f9535a-5df1-4ee4-8007-5f41407c10c4" width="320" controls muted></video>
 </div>
 
-**Trained it.** First a smaller policy (ACT) just to prove the pipeline worked end to end, then a
-fine-tuned SmolVLA model for the version that actually understands the command. Training ran on a
-rented A100.
+**Trained it.** First a smaller policy (ACT) trained on a rented 4090 just to prove the pipeline worked end to end, then a
+fine-tuned SmolVLA model for the version that actually understands what I'm saying. Training ran on
+a rented A100.
 
 <!-- drag your training timelapse mp4 here in GitHub's web editor -->
 
@@ -133,10 +132,11 @@ Not yet / rough edges:
   grasping — because in training that left-facing pose meant *placing*, not picking. The fix is data:
   demos with picks spread across a wider area. Same root cause makes the grip weaker on the left than
   the right.
-- **Slippery stuff.** It reaches for a slick tube just fine but the gripper can lose its grip. That's
-  a grip problem, not a brain problem, and some rubber pads would sort it.
+- **Rubber grips.** The main problem is grabbing anything with a smooth or plastic surface — the
+  gripper loses its hold, and the fix is rubber pads on the gripper's fingers.
 - **One camera.** The wrist camera loses sight of the object right at the end of the reach, so the
-  grab gets less precise near the edges of the workspace.
+  grab gets less precise near the edges of the workspace. A second camera would also help with
+  dynamic situations — where the drop-off zone is moving and so is the object.
 - **Stopping after one grasp** is still manual — I hit Ctrl-C when it's placed (which returns the arm
   home cleanly). There's an experimental `--auto-stop` that watches for the arm returning home, but
   it can mis-fire mid-grasp, so it's off by default.
@@ -160,8 +160,7 @@ scripts/deploy.sh           run the bare policy on the arm from a typed command
 media/                      videos used above
 ```
 
-The model and the recordings live on the Hugging Face Hub (linked up top), not in here, since
-they're big files, not code.
+The model and the recordings live on the Hugging Face Hub (linked up top)
 
 ## Running it yourself
 
@@ -188,14 +187,14 @@ python voice_grasp.py                        # say "grab the pen"; Ctrl-C when i
 `deploy_select.py` needs `openai-whisper` only for voice; the detector pulls in `transformers`
 (OWLv2). The detector runs on CPU on purpose so it doesn't fight the policy for the laptop GPU.
 
-## A couple of decisions worth explaining
+## A couple of decisions
 
 - **Imitation learning instead of RL,** because copying a few demonstrations is way more practical
-  on a real arm than millions of trial-and-error attempts.
+  on a real arm than millions of trial-and-error attempts that felt like they werent really going anywhere.
 - **Fine-tuning a pretrained model instead of one model per object,** so adding a new object takes a
-  lot less data.
+  lot less data and it allows the robot to be able to become a little more comfortable in new situations.
 - **Getting one object at one spot rock solid first,** then position, then the command, instead of
-  trying to do all of it at once.
+  trying to do all of it at once, it just created for a smoother pipeline that I could then execute and understand.
 
 ## What's next
 
@@ -207,7 +206,3 @@ object. Still ahead:
    trained on. Same retrain fixes the left/right grip asymmetry.
 2. Keeping track of the object if I move it mid-reach.
 3. Handing the object to my hand instead of dropping it on the mat.
-
-<sub>To add a video: open this README in GitHub's web editor and drag an mp4 onto the spot. To keep
-portrait clips from stretching across the page, wrap them like the ones above:
-`<div align="center"><video src="URL" width="320" controls muted></video></div>`.</sub>
