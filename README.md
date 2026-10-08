@@ -3,7 +3,7 @@
 I built a robot arm that picks up the object you ask it for. You can type the command or **say it**
 ("grab the pen") and it finds the object, grabs it, and drops it on the mat. It can pick the right
 object out of a scene with **several objects**, and if the thing you asked for isn't even in the
-camera's view it will **pan around to look for it** first. The arm is a cheap SO-101 I put together
+camera's view it will **pan around to look for it** first. The arm is a SO-101 I put together
 myself, driven by a vision-language model I fine-tuned, and all of it runs on my laptop.
 
 <div align="center">
@@ -32,6 +32,37 @@ three things the policy couldn't on its own:
   and adding a new object is one line in `perception/objects.py`.
 - **Look for it if it's off-screen.** If the object isn't in view, the arm pans to find it and
   centers on it before grasping.
+
+## Results
+
+Measured on the real arm — **20 trials per condition**, object position varied every trial, success
+= the named object ends up on the plate.
+
+> **Picking the right object in a two-object scene: 25% → 85%** after adding the detector + masking.
+
+**Two objects in frame, pick the one I asked for:**
+
+| Setup | Correct object grasped |
+| --- | :---: |
+| Before — no masking | 5 / 20 · 25% |
+| After — "pick the pen" | **18 / 20 · 90%** |
+| After — "pick the bear" | **16 / 20 · 80%** |
+
+Spoken commands score the same as typed — once Whisper turns speech into the instruction, the rest
+of the pipeline is identical.
+
+**Search → grasp, by side of the workspace** — it *finds* the object anywhere, but only *grasps*
+where the policy was trained:
+
+| Object | Right side | Left side |
+| --- | :---: | :---: |
+| Pen | **20 / 20 · 100%** | 0 / 20 · 0% |
+| Bear | **15 / 20 · 75%** | 0 / 20 · 0% |
+
+The left-side 0/20 isn't a perception miss — the arm finds and centers on the object every time. It's
+the grasp policy reverting, because it was only ever trained to pick from the right/front (that pose
+meant *place*, not *pick*, in training). Widening that is the next retrain — see
+[what works and what doesn't](#what-works-and-what-doesnt).
 
 ## How I got here
 
