@@ -2,3 +2,8 @@ __pycache__/
 *.pyc
 .DS_Store
 outputs/
+
+# perception test/debug image artifacts (camera frames, annotated previews)
+perception/testframes/
+perception/annotated/
+perception/live/

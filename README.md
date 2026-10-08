@@ -1,10 +1,10 @@
 # Voice Controlled Robotic Arm
 
-I built a robot arm that picks up the object you ask it for. Right now I give it the command by
-typing it ("pick up the pen and drop it on the plate") and it finds the object, grabs it, and drops
-it on the mat. Voice is the goal and the next thing I'm adding: turning a spoken command into that
-same instruction with Whisper. The arm is a cheap SO-101 I put together myself, driven by a
-vision-language model I fine-tuned, and all of it runs on my laptop.
+I built a robot arm that picks up the object you ask it for. You can type the command or **say it**
+("grab the pen") and it finds the object, grabs it, and drops it on the mat. It can pick the right
+object out of a scene with **several objects**, and if the thing you asked for isn't even in the
+camera's view it will **pan around to look for it** first. The arm is a cheap SO-101 I put together
+myself, driven by a vision-language model I fine-tuned, and all of it runs on my laptop.
 
 <div align="center">
   <video src="https://github.com/user-attachments/assets/726b167d-a6dd-4802-8a17-194a013c16bf" width="320" controls muted></video>
@@ -22,9 +22,16 @@ and drops it on the mat. It handles a handful of objects, and the object can be 
 camera can see it, not just one taped-down spot. Everything runs on my laptop. The only thing that
 needed a real GPU was training.
 
-For now I type the command in. Wiring up spoken commands is the next piece: `voice_grasp.py` is
-written to do it (Whisper turns speech into the same command string), but I haven't recorded a real
-voice demo yet, so treat voice as coming-soon, not done.
+On top of the core grasp policy I added a perception layer (an open-vocabulary detector) that does
+three things the policy couldn't on its own:
+
+- **Say it out loud.** `voice_grasp.py` turns a spoken command into the same instruction with Whisper.
+- **Pick one object out of many.** With two objects in frame the policy used to dither (it was only
+  trained on single-object scenes). Now a detector finds the one you named and blurs the others out
+  of the camera feed, so the policy sees the clean single-object scene it's good at — no retraining,
+  and adding a new object is one line in `perception/objects.py`.
+- **Look for it if it's off-screen.** If the object isn't in view, the arm pans to find it and
+  centers on it before grasping.
 
 ## How I got here
 
@@ -82,31 +89,44 @@ rented A100.
 ## What works and what doesn't
 
 Works:
-- It grabs the object you asked for, with a grip that suits it.
+- It grabs the object you asked for, with a grip that suits it, from a typed **or spoken** command.
 - It works wherever the object is in view, not just one memorized spot.
-- It runs by itself on the laptop from a typed command.
+- **Two objects at once.** It picks the one you named and ignores the other (detector + masking).
+- **Off-screen objects.** It pans around to find the object, centers on it, then grasps.
+- It runs by itself on the laptop.
 
-Not yet:
-- **Voice.** Commands are typed for now. The Whisper script is written but I haven't recorded a
-  working voice demo, so this is the next thing.
-- **Two objects at once.** One object in the scene and it's solid. Put two down and it dithers,
-  because I only trained on single-object scenes, so it never had to use the words to choose between
-  them.
+Not yet / rough edges:
+- **Grasping only works where the policy was trained.** The search can *find* an object anywhere,
+  but the grasp policy only learned to reach in the region my demos covered (skewed right/front). Put
+  an object far to the left/front and it finds it but then reverts toward the trained spot instead of
+  grasping — because in training that left-facing pose meant *placing*, not picking. The fix is data:
+  demos with picks spread across a wider area. Same root cause makes the grip weaker on the left than
+  the right.
 - **Slippery stuff.** It reaches for a slick tube just fine but the gripper can lose its grip. That's
   a grip problem, not a brain problem, and some rubber pads would sort it.
 - **One camera.** The wrist camera loses sight of the object right at the end of the reach, so the
   grab gets less precise near the edges of the workspace.
+- **Stopping after one grasp** is still manual — I hit Ctrl-C when it's placed (which returns the arm
+  home cleanly). There's an experimental `--auto-stop` that watches for the arm returning home, but
+  it can mis-fire mid-grasp, so it's off by default.
 
 ## What's in this repo
 
 ```
-README.md                 this file
-requirements.txt          dependencies
-voice_grasp.py            voice control (mic -> Whisper -> arm), written, not yet demoed
-scripts/record.sh         record demonstrations
-scripts/train_smolvla.sh  train the model on a GPU
-scripts/deploy.sh         run the model on the arm from a typed command
-media/                    videos used above
+README.md                   this file
+requirements.txt            dependencies
+deploy_select.py            grasp a named object: detect -> (search) -> (mask) -> grasp
+voice_grasp.py              voice control (mic -> Whisper -> deploy_select)
+perception/
+  detector.py               open-vocabulary object detector (OWLv2)
+  objects.py                the objects it knows (detect label <-> command <-> aliases)
+  masking_robot.py          blur the other objects out of the policy's camera feed
+  search.py                 pan the arm to find an off-screen object, center on it
+  autostop.py               experimental: stop when the arm returns home
+scripts/record.sh           record demonstrations
+scripts/train_smolvla.sh    train the model on a GPU
+scripts/deploy.sh           run the bare policy on the arm from a typed command
+media/                      videos used above
 ```
 
 The model and the recordings live on the Hugging Face Hub (linked up top), not in here, since
@@ -124,9 +144,18 @@ pip install -r requirements.txt
 # 2. Train on a GPU (uploads the model when it's done)
 ./scripts/train_smolvla.sh
 
-# 3. Run it on the arm from a typed command
-./scripts/deploy.sh "Pick up the pen and drop it on the plate"
+# 3. Run it on the arm
+./scripts/deploy.sh "Pick up the pen and drop it on the plate"   # bare policy, one command
+
+# ...or the perception layer on top:
+python deploy_select.py pen                 # detect + grasp the pen
+python deploy_select.py pen --mask          # pick the pen out of a two-object scene
+python deploy_select.py bear --search --mask # pan to find the bear, then grasp it
+python voice_grasp.py                        # say "grab the pen"; Ctrl-C when it's placed
 ```
+
+`deploy_select.py` needs `openai-whisper` only for voice; the detector pulls in `transformers`
+(OWLv2). The detector runs on CPU on purpose so it doesn't fight the policy for the laptop GPU.
 
 ## A couple of decisions worth explaining
 
@@ -139,13 +168,14 @@ pip install -r requirements.txt
 
 ## What's next
 
-1. Voice: recording and wiring up the spoken-command version (the script's written, I just haven't
-   demoed it yet).
-2. Telling two objects apart, using an off-the-shelf object detector so it scales to new objects
-   without retraining.
-3. Turning to find an object that starts outside the camera's view.
-4. Keeping track of the object if I move it mid-reach.
-5. Handing the object to my hand instead of dropping it on the mat.
+Done since the first version: voice, telling two objects apart, and panning to find an off-screen
+object. Still ahead:
+
+1. **Wider grasping.** Record demos with picks spread across a wider area (left/front included) and
+   fine-tune, so the arm can grasp wherever the search finds something — not just the region it was
+   trained on. Same retrain fixes the left/right grip asymmetry.
+2. Keeping track of the object if I move it mid-reach.
+3. Handing the object to my hand instead of dropping it on the mat.
 
 <sub>To add a video: open this README in GitHub's web editor and drag an mp4 onto the spot. To keep
 portrait clips from stretching across the page, wrap them like the ones above:
