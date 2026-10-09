@@ -28,15 +28,15 @@ three things the policy couldn't on its own:
 - **Say it out loud.** `voice_grasp.py` turns a spoken command into the same instruction with Whisper.
 - **Pick one object out of many.** With two objects in frame the policy used to dither (it was only
   trained on single-object scenes). Now a detector finds the one you named and blurs the others out
-  of the camera feed, so the policy sees the clean single-object scene it's good at — no retraining,
+  of the camera feed, so the policy sees the clean single-object scene it's good at, with no retraining,
   and adding a new object is one line in `perception/objects.py`.
 - **Look for it if it's off-screen.** If the object isn't in view, the arm pans to find it and
   centers on it before grasping.
 
 ## Results
 
-Measured on the real arm — **20 trials per condition**, object position varied every trial, success
-= the named object ends up on the plate.
+Measured on the real arm. **20 trials per condition**, object position varied every trial. Success
+is the named object ending up on the plate.
 
 > **Picking the right object in a two-object scene: 25% → 85%** after adding the detector + masking.
 
@@ -44,14 +44,14 @@ Measured on the real arm — **20 trials per condition**, object position varied
 
 | Setup | Correct object grasped |
 | --- | :---: |
-| Before — no masking | 5 / 20 · 25% |
-| After — "pick the pen" | **18 / 20 · 90%** |
-| After — "pick the bear" | **16 / 20 · 80%** |
+| Before (no masking) | 5 / 20 · 25% |
+| After, "pick the pen" | **18 / 20 · 90%** |
+| After, "pick the bear" | **16 / 20 · 80%** |
 
-Spoken commands score the same as typed — once Whisper turns speech into the instruction, the rest
+Spoken commands score the same as typed. Once Whisper turns speech into the instruction, the rest
 of the pipeline is identical.
 
-**Search → grasp, by side of the workspace** — it *finds* the object anywhere, but only *grasps*
+**Search → grasp, by side of the workspace.** It *finds* the object anywhere, but only *grasps*
 where the policy was trained:
 
 | Object | Right side | Left side |
@@ -59,10 +59,10 @@ where the policy was trained:
 | Pen | **20 / 20 · 100%** | 0 / 20 · 0% |
 | Bear | **15 / 20 · 75%** | 0 / 20 · 0% |
 
-The left-side 0/20 isn't a perception miss — the arm finds and centers on the object every time. It's
+The left-side 0/20 isn't a perception miss. The arm finds and centers on the object every time. It's
 the grasp policy reverting, because it was only ever trained to pick from the right/front (that pose
-meant *place*, not *pick*, in training). Widening that is the next retrain — see
-[what works and what doesn't](#what-works-and-what-doesnt).
+meant *place*, not *pick*, in training). Widening that is the next retrain (see
+[what works and what doesn't](#what-works-and-what-doesnt)).
 
 ## How I got here
 
@@ -129,15 +129,15 @@ Not yet / rough edges:
 - **Grasping only works where the policy was trained.** The search can *find* an object anywhere,
   but the grasp policy only learned to reach in the region my demos covered (skewed right/front). Put
   an object far to the left/front and it finds it but then reverts toward the trained spot instead of
-  grasping — because in training that left-facing pose meant *placing*, not picking. The fix is data:
+  grasping, because in training that left-facing pose meant *placing*, not picking. The fix is data:
   demos with picks spread across a wider area. Same root cause makes the grip weaker on the left than
   the right.
-- **Rubber grips.** The main problem is grabbing anything with a smooth or plastic surface — the
+- **Rubber grips.** The main problem is grabbing anything with a smooth or plastic surface. The
   gripper loses its hold, and the fix is rubber pads on the gripper's fingers.
 - **One camera.** The wrist camera loses sight of the object right at the end of the reach, so the
   grab gets less precise near the edges of the workspace. A second camera would also help with
-  dynamic situations — where the drop-off zone is moving and so is the object.
-- **Stopping after one grasp** is still manual — I hit Ctrl-C when it's placed (which returns the arm
+  dynamic situations, where the drop-off zone is moving and so is the object.
+- **Stopping after one grasp** is still manual. I hit Ctrl-C when it's placed (which returns the arm
   home cleanly). There's an experimental `--auto-stop` that watches for the arm returning home, but
   it can mis-fire mid-grasp, so it's off by default.
 
@@ -202,7 +202,7 @@ Done since the first version: voice, telling two objects apart, and panning to f
 object. Still ahead:
 
 1. **Wider grasping.** Record demos with picks spread across a wider area (left/front included) and
-   fine-tune, so the arm can grasp wherever the search finds something — not just the region it was
+   fine-tune, so the arm can grasp wherever the search finds something, not just the region it was
    trained on. Same retrain fixes the left/right grip asymmetry.
 2. Keeping track of the object if I move it mid-reach.
 3. Handing the object to my hand instead of dropping it on the mat.
