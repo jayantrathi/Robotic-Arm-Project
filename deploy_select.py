@@ -36,7 +36,7 @@ FOLLOWER_PORT = "/dev/tty.usbmodem5B790815221"
 FOLLOWER_ID = "my_follower_arm"
 CAMERA_INDEX = 0
 CAMERA_KEY = "camera1"               # must match the policy's trained camera name
-POLICY_PATH = "jayantrathi/smolvla_lang_grasp_v1"
+POLICY_PATH = "jayantrathi/smolvla_lang_grasp_v2"
 POLICY_DEVICE = "mps"
 DEFAULT_DURATION = 40            # safety cap only; auto-stop normally ends the run at ~home
 # ---------------------------------------------------------------------------
@@ -140,6 +140,7 @@ def main() -> int:
     detector = ObjectDetector(device=args.detector_device)
 
     # 1. FIND THE OBJECT
+    found_pan = None
     if args.search:
         # Pan the arm to find + centre on the object, leaving it facing the object
         # (torque held, so it keeps the pose while the rollout reconnects).
@@ -148,11 +149,11 @@ def main() -> int:
         srobot = build_robot()
         srobot.connect()
         try:
-            found = search_for(srobot, detector, detect_target, candidates,
-                               threshold=args.threshold)
+            found_pan = search_for(srobot, detector, detect_target, candidates,
+                                   threshold=args.threshold)
         finally:
             srobot.disconnect()   # disable_torque_on_disconnect=False -> arm holds pose
-        if not found and not args.force:
+        if found_pan is None and not args.force:
             print("  Search didn't find the object. Aborting (use --force to run anyway).")
             return 1
         sel = None  # no gate selection; the mask thread will find distractors itself
@@ -177,6 +178,7 @@ def main() -> int:
     #    - masking on top when --mask
     import lerobot.rollout.context as ctx
     autostop = args.auto_stop
+
     if args.mask:
         # distractor boxes the gate already saw = best box per non-target label
         initial_distractors: list[tuple] = []

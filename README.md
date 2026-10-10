@@ -10,8 +10,8 @@ myself, driven by a vision-language model I fine-tuned, and all of it runs on my
   <video src="https://github.com/user-attachments/assets/726b167d-a6dd-4802-8a17-194a013c16bf" width="320" controls muted></video>
 </div>
 
-[Model](https://huggingface.co/jayantrathi/smolvla_lang_grasp_v1) ·
-[Dataset](https://huggingface.co/datasets/jayantrathi/lang_grasp_v1) ·
+[Model](https://huggingface.co/jayantrathi/smolvla_lang_grasp_v2) ·
+[Dataset](https://huggingface.co/datasets/jayantrathi/lang_grasp_v2) ·
 [How to run it](#running-it-yourself)
 
 ## What it does
@@ -38,9 +38,10 @@ three things the policy couldn't on its own:
 Measured on the real arm. **20 trials per condition**, object position varied every trial. Success
 is the named object ending up on the plate.
 
-> **Picking the right object in a two-object scene: 25% → 85%** after adding the detector + masking.
+Two headline jumps: **picking the right object in a two-object scene went 25% → 85%**, and
+**off-angle grasping went from 0/20 on the left to ~85% everywhere** after a fresh dataset.
 
-**Two objects in frame, pick the one I asked for:**
+**Two objects in frame, pick the one I asked for** (detector + masking):
 
 | Setup | Correct object grasped |
 | --- | :---: |
@@ -49,20 +50,21 @@ is the named object ending up on the plate.
 | After, "pick the bear" | **16 / 20 · 80%** |
 
 Spoken commands score the same as typed. Once Whisper turns speech into the instruction, the rest
-of the pipeline is identical.
+of the pipeline is identical. Masking holds up even with several objects crowded close together.
 
-**Search → grasp, by side of the workspace.** It *finds* the object anywhere, but only *grasps*
-where the policy was trained:
+**Search → grasp, across the workspace.** The first policy could only grasp where its demos were
+(the right/front), so an object off to the left was found and centered every time but then the
+policy reverted instead of grasping. Recording a fresh dataset of grasps **from the facing pose**
+(200 demos across the full left-to-right range) fixed it:
 
-| Object | Right side | Left side |
+| Side | First policy | After the facing-pose retrain |
 | --- | :---: | :---: |
-| Pen | **20 / 20 · 100%** | 0 / 20 · 0% |
-| Bear | **15 / 20 · 75%** | 0 / 20 · 0% |
+| Left | 0 / 20 · 0% | **~17 / 20 · 85%** |
+| Right | 15-20 / 20 | **~17 / 20 · 85%** |
 
-The left-side 0/20 isn't a perception miss. The arm finds and centers on the object every time. It's
-the grasp policy reverting, because it was only ever trained to pick from the right/front (that pose
-meant *place*, not *pick*, in training). Widening that is the next retrain (see
-[what works and what doesn't](#what-works-and-what-doesnt)).
+The new policy holds **80 to 90% across all four objects and the whole left-to-right range**, so the
+left/right asymmetry is gone. The trick was matching training to how the arm actually runs: search
+pans to face the object, so every demo was recorded starting from that same facing pose.
 
 ## How I got here
 
@@ -110,28 +112,30 @@ a rented A100.
 
 ## Training details
 
-- Around 90 demos across three objects (a soft bear, a pen, a small tube), each tagged with its
-  command, object moved around between recordings.
-- Fine-tuned SmolVLA for 20k steps on one A100, about four hours. Trained model is up on the Hugging
+- The current model (v2) is fine-tuned on **200 demos across four objects** (bear, pen, tube, and a
+  headphone case), recorded **from the facing pose**: the arm turned to face the object with it
+  centered in the camera, then the grasp. Spread across the full left-to-right range so it grasps
+  wherever the search leaves it.
+- Fine-tuned SmolVLA for 20-30k steps on one A100, a few hours. Trained model is up on the Hugging
   Face Hub.
 - Runs in real time on the laptop GPU.
+- The earlier model (v1) was ~90 home-start demos across three objects. It worked, but only grasped
+  in the region those demos covered, which is what the v2 facing-pose set fixed.
 
 ## What works and what doesn't
 
 Works:
 - It grabs the object you asked for, with a grip that suits it, from a typed **or spoken** command.
-- It works wherever the object is in view, not just one memorized spot.
-- **Two objects at once.** It picks the one you named and ignores the other (detector + masking).
+- **Across the whole workspace**, left to right, at 80 to 90%. Off-angle objects work now, not just
+  the region the first model was trained on.
+- **Two objects at once.** It picks the one you named and ignores the other (detector + masking),
+  even with several crowded close together.
 - **Off-screen objects.** It pans around to find the object, centers on it, then grasps.
 - It runs by itself on the laptop.
 
 Not yet / rough edges:
-- **Grasping only works where the policy was trained.** The search can *find* an object anywhere,
-  but the grasp policy only learned to reach in the region my demos covered (skewed right/front). Put
-  an object far to the left/front and it finds it but then reverts toward the trained spot instead of
-  grasping, because in training that left-facing pose meant *placing*, not picking. The fix is data:
-  demos with picks spread across a wider area. Same root cause makes the grip weaker on the left than
-  the right.
+- **The pen on the far left** can hesitate for a moment before it commits (it is thin, so it centers
+  a touch less precisely), then it grabs. Tightening the search centering smooths it.
 - **Rubber grips.** The main problem is grabbing anything with a smooth or plastic surface. The
   gripper loses its hold, and the fix is rubber pads on the gripper's fingers.
 - **One camera.** The wrist camera loses sight of the object right at the end of the reach, so the
@@ -198,11 +202,9 @@ python voice_grasp.py                        # say "grab the pen"; Ctrl-C when i
 
 ## What's next
 
-Done since the first version: voice, telling two objects apart, and panning to find an off-screen
-object. Still ahead:
+Done since the first version: voice, telling two objects apart, panning to find an off-screen
+object, and grasping across the whole workspace (a fresh facing-pose dataset). Still ahead:
 
-1. **Wider grasping.** Record demos with picks spread across a wider area (left/front included) and
-   fine-tune, so the arm can grasp wherever the search finds something, not just the region it was
-   trained on. Same retrain fixes the left/right grip asymmetry.
-2. Keeping track of the object if I move it mid-reach.
-3. Handing the object to my hand instead of dropping it on the mat.
+1. Keeping track of the object if I move it mid-reach.
+2. Handing the object to my hand instead of dropping it on the mat. This one needs a second camera,
+   since the wrist camera is blind to anything but the object once the gripper closes on it.

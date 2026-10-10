@@ -16,7 +16,7 @@ TASK="${1:?Provide a task string, e.g. \"Pick up the pen and drop it on the plat
 NUM="${2:-30}"
 RESUME="${3:-}"    # pass --resume to append to an existing dataset
 
-REPO=jayantrathi/lang_grasp_v1
+REPO=jayantrathi/lang_grasp_v2
 ROOT="$HOME/.cache/huggingface/lerobot/$REPO"
 FOLLOWER_PORT=/dev/tty.usbmodem5B790815221
 LEADER_PORT=/dev/tty.usbmodem5B790800051
@@ -38,4 +38,4 @@ lerobot-record \
   --dataset.no_stamp=true \
   --dataset.push_to_hub=false \
   --display_data=true \
-  $RESUME
+  ${RESUME:+--resume=true}

@@ -12,7 +12,7 @@ TASK="${1:?Provide a task, e.g. \"Pick up the pen and drop it on the plate\"}"
 
 lerobot-rollout \
   --strategy.type=base \
-  --policy.path=jayantrathi/smolvla_lang_grasp_v1 \
+  --policy.path=jayantrathi/smolvla_lang_grasp_v2 \
   --policy.device=mps \
   --robot.type=so101_follower \
   --robot.port=/dev/tty.usbmodem5B790815221 \

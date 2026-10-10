@@ -47,6 +47,15 @@ REGISTRY: dict[str, KnownObject] = {
         task="Pick up the lip balm and drop it on the plate",
         aliases=["lip balm", "balm", "chapstick", "tube"],
     ),
+    "headphone case": KnownObject(
+        name="headphone case",
+        # NOTE: "pouch" is a first guess for OWLv2 on a soft black case. Test it
+        # on a live frame (like we did for pen/bear) and switch to whatever
+        # scores best ("case", "wallet", "black pouch") before trusting masking/search.
+        detect=["pouch"],
+        task="Pick up the headphone case and drop it on the plate",
+        aliases=["headphone case", "headphones", "headphone", "case", "pouch"],
+    ),
 }
 
 

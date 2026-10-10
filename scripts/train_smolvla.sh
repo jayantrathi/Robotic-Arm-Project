@@ -10,14 +10,14 @@ set -e
 
 lerobot-train \
   --policy.path=lerobot/smolvla_base \
-  --dataset.repo_id=jayantrathi/lang_grasp_v1 \
+  --dataset.repo_id=jayantrathi/lang_grasp_v2 \
   --rename_map='{"observation.images.front": "observation.images.camera1"}' \
-  --output_dir=outputs/train/smolvla_lang_grasp_v1 \
-  --job_name=smolvla_lang_grasp_v1 \
+  --output_dir=outputs/train/smolvla_lang_grasp_v2 \
+  --job_name=smolvla_lang_grasp_v2 \
   --policy.device=cuda \
   --batch_size=64 \
   --steps=20000 \
   --save_freq=5000 \
-  --policy.repo_id=jayantrathi/smolvla_lang_grasp_v1 \
+  --policy.repo_id=jayantrathi/smolvla_lang_grasp_v2 \
   --policy.push_to_hub=true \
   --wandb.enable=false

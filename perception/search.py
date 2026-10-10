@@ -149,8 +149,9 @@ def _center_on(robot, detector, target, candidates, threshold, pan,
     return cur
 
 
-def search_for(robot, detector, target, candidates, threshold=0.18) -> bool:
-    """Pan to find `target`, centre on it, and leave the arm facing it. -> found?"""
+def search_for(robot, detector, target, candidates, threshold=0.18):
+    """Pan to find `target` and centre on it. Returns the final pan angle (deg)
+    if found and the arm is left facing it, else None."""
     # Move to the scan pose at the home pan first (known-safe, camera on the table).
     print("[search] moving to scan pose...")
     move_to(robot, {**SCAN_POSE, "shoulder_pan.pos": PAN_HOME})
@@ -165,12 +166,12 @@ def search_for(robot, detector, target, candidates, threshold=0.18) -> bool:
         if found:
             final = _center_on(robot, detector, target, candidates, threshold, pan)
             print(f"[search] object centred at pan={final:+.0f}. Arm left facing it.")
-            return True
+            return final
 
     # Not found: return to home pan so the arm is in a known pose.
     print("[search] object not found across the sweep. Returning to home pan.")
     move_to(robot, {**SCAN_POSE, "shoulder_pan.pos": PAN_HOME})
-    return False
+    return None
 
 
 def main() -> int:
@@ -197,11 +198,14 @@ def main() -> int:
     robot = build_robot()
     robot.connect()
     try:
-        ok = search_for(robot, detector, detect_target, candidates, threshold=args.threshold)
-        print("\nRESULT:", "FOUND" if ok else "NOT FOUND")
+        final_pan = search_for(robot, detector, detect_target, candidates, threshold=args.threshold)
+        if final_pan is not None:
+            print(f"\nRESULT: FOUND at pan={final_pan:+.0f} (offset from home {PAN_HOME:.0f} = {final_pan-PAN_HOME:+.0f})")
+        else:
+            print("\nRESULT: NOT FOUND")
     finally:
         robot.disconnect()   # torque held (disable_torque_on_disconnect=False)
-    return 0 if ok else 1
+    return 0 if final_pan is not None else 1
 
 
 if __name__ == "__main__":
