@@ -1,15 +1,4 @@
 #!/usr/bin/env python3
-"""
-Grab one (or a few) frames from the wrist camera and save them to
-perception/live/. Used for tuning the detector against the real scene.
-
-Run it from a Terminal that has macOS Camera permission:
-    ~/robotarm/env/bin/python ~/ARM/perception/grab_frame.py          # 1 frame
-    ~/robotarm/env/bin/python ~/ARM/perception/grab_frame.py 5        # 5 frames, 1s apart
-
-The FIRST time you run it, macOS will pop up a Camera permission prompt for
-your Terminal app -> click Allow. After that it just works.
-"""
 import os
 import sys
 import time
@@ -29,11 +18,9 @@ def main():
     cap.set(cv2.CAP_PROP_FRAME_HEIGHT, 480)
     if not cap.isOpened():
         print("ERROR: could not open camera index", CAMERA_INDEX)
-        print("If macOS blocked it, grant this Terminal app Camera access in")
-        print("System Settings > Privacy & Security > Camera, then rerun.")
+        print("Grant this terminal Camera access in System Settings > Privacy & Security > Camera.")
         return 1
 
-    # let autoexposure/white-balance settle before the first save
     for _ in range(10):
         cap.read()
         time.sleep(0.05)
