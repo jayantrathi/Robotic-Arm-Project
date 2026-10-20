@@ -1,10 +1,8 @@
 # Voice Controlled Robotic Arm
 
-I built a robot arm that picks up the object you ask it for. You can type the command or **say it**
-("grab the pen") and it finds the object, grabs it, and drops it on the coaster. It can pick the right
-object out of a scene with **several objects**, and if the thing you asked for isn't even in the
-camera's view it will **pan around to look for it** first. The arm is a SO-101 I put together
-myself, driven by a vision-language model I fine-tuned, and all of it runs on my laptop.
+I built a robot arm that picks up the object you ask it for. You can say ("grab the pen") and it finds the object, grabs it, and drops it on the coaster. It can pick the right
+object out of a scene with several objects, and if the thing you asked for isn't even in the
+camera's view it will pan around to look for it first. The arm is a SO-101, driven by a vision-language model I fine tuned, and all of it runs on my laptop.
 
 <div align="center">
   <video src="https://github.com/user-attachments/assets/726b167d-a6dd-4802-8a17-194a013c16bf" width="320" controls muted></video>
@@ -22,23 +20,20 @@ and drops it on the coaster. It handles a handful of objects, and the object can
 camera can see it, not just one specific spot. Everything runs on my laptop. The only thing that
 needed a real GPU was training.
 
-On top of the core grasp policy I added a perception layer (an open-vocabulary detector) that does
+On top of the core grasp policy I added a perception layer (an open vocabulary detector) that does
 three things the policy couldn't on its own:
 
-- **Say it out loud.** `voice_grasp.py` turns a spoken command into the same instruction with Whisper.
-- **Pick one object out of many.** With two objects in frame the policy used to dither (it was only
-  trained on single-object scenes). Now a detector finds the one you named and blurs the others out
-  of the camera feed, so the policy sees the clean single-object scene it's good at, with no retraining,
-  and adding a new object is one line in `perception/objects.py`.
-- **Look for it if it's off-screen.** If the object isn't in view, the arm pans to find it and
-  centers on it before grasping.
+- `voice_grasp.py` turns a spoken command into the same instruction with Whisper.
+- With two objects in frame the policy used to dither (it was only trained on single object scenes). Now a detector finds the one you named and blurs the others out
+  of the camera feed, so the policy sees the clean single object scene it's good at, with no retraining.
+- If the object isn't in view, the arm pans to find it and centers on it before grasping.
 
 ## Results
 
 Measured on the real arm. **20 trials per condition**, object position varied every trial. Success
 is the named object ending up on the plate.
 
-Two headline jumps: **picking the right object in a two-object scene went 25% → 85%**, and
+Two headline jumps: **picking the right object in a two object scene went 25% → 85%**, and
 **off-angle grasping went from 0/20 on the left to ~85% everywhere** after a fresh dataset.
 
 **Two objects in frame, pick the one I asked for** (detector + masking):
@@ -71,14 +66,9 @@ pans to face the object, so every demo was recorded starting from that same faci
 I did this in stages:
 
 **Started in a simulator.** My first attempt was reinforcement learning in sim. It was slow and a
-pain to get anywhere with, so I gave up on it and switched to imitation learning, where the arm
-just copies demonstrations instead of figuring everything out by trial and error. That was the turn
-that actually got things moving.
+pain to get anywhere with, so I gave up on it and switched to imitation learning.
 
-**Built the arm and got it moving.** It's a self-assembled SO-101. Early on I drove it with a
-second "leader" arm that I move by hand while the main arm mirrors it.
-
-**Tried driving it in VR.** I also wired it up so I could move it from a Quest 2 headset. Definitely interesting to see work, but
+**Tried driving it in VR.** I also wired it up so I could move it from a Quest 2 headset. It was interesting to see work, but
 too finicky to sit there and record hundreds of demos with, so I went back to the leader arm for
 the real data recording.
 
@@ -106,44 +96,40 @@ a rented A100.
 
 - **Arm:** a self-assembled SO-101 with Feetech serial-bus servos and a camera on the wrist.
 - **Software:** Hugging Face LeRobot for recording, training, and running everything.
-- **Model:** SmolVLA, a 450M-parameter vision-language-action model, fine-tuned from the base
+- **Model:** SmolVLA, a 450M-parameter vision-language-action model, fine tuned from the base
   checkpoint. It takes the camera image, the arm's joint positions, and the command, and spits out
   the next moves.
 
 ## Training details
 
-- The current model (v2) is fine-tuned on **200 demos across four objects** (bear, pen, tube, and a
-  headphone case), recorded **from the facing pose**: the arm turned to face the object with it
+- The current model (v2) is fine tuned on 200 demos across four objects (bear, pen, tube, and a
+  headphone case), recorded from the facing pose: the arm turned to face the object with it
   centered in the camera, then the grasp. Spread across the full left-to-right range so it grasps
   wherever the search leaves it.
-- Fine-tuned SmolVLA for 20-30k steps on one A100, a few hours. Trained model is up on the Hugging
+- Fine tuned SmolVLA for 20-30k steps on one A100. Trained model is up on the Hugging
   Face Hub.
 - Runs in real time on the laptop GPU.
-- The earlier model (v1) was ~90 home-start demos across three objects. It worked, but only grasped
-  in the region those demos covered, which is what the v2 facing-pose set fixed.
+- The earlier model (v1) was ~90 home start demos across three objects. It worked, but only grasped
+  in the region those demos covered, which is what the v2 facing pose set fixed.
 
 ## What works and what doesn't
 
 Works:
-- It grabs the object you asked for, with a grip that suits it, from a typed **or spoken** command.
-- **Across the whole workspace**, left to right, at 80 to 90%. Off-angle objects work now, not just
-  the region the first model was trained on.
+- It grabs the object you asked for, with a grip that suits it, from a spoken command.
+- **Across the whole workspace**, left to right, at 80 to 90%.
 - **Two objects at once.** It picks the one you named and ignores the other (detector + masking),
   even with several crowded close together.
 - **Off-screen objects.** It pans around to find the object, centers on it, then grasps.
 - It runs by itself on the laptop.
 
-Not yet / rough edges:
+Next Steps
+- **Rubber grips.** The main problem is grabbing anything with a smooth or plastic surface. The
+  gripper loses its hold, and the fix is rubber pads on the gripper's fingers. 
 - **The pen on the far left** can hesitate for a moment before it commits (it is thin, so it centers
   a touch less precisely), then it grabs. Tightening the search centering smooths it.
-- **Rubber grips.** The main problem is grabbing anything with a smooth or plastic surface. The
-  gripper loses its hold, and the fix is rubber pads on the gripper's fingers.
 - **One camera.** The wrist camera loses sight of the object right at the end of the reach, so the
   grab gets less precise near the edges of the workspace. A second camera would also help with
   dynamic situations, where the drop-off zone is moving and so is the object.
-- **Stopping after one grasp** is still manual. I hit Ctrl-C when it's placed (which returns the arm
-  home cleanly). There's an experimental `--auto-stop` that watches for the arm returning home, but
-  it can mis-fire mid-grasp, so it's off by default.
 
 ## What's in this repo
 
@@ -171,21 +157,19 @@ The model and the recordings live on the Hugging Face Hub (linked up top)
 ```bash
 pip install -r requirements.txt
 
-# 1. Record demos (one object per batch, add --resume and a new label for the next one)
+# 1. Record demos
 ./scripts/record.sh "Pick up the pen and drop it on the plate" 30
 ./scripts/record.sh "Pick up the bear and drop it on the plate" 30 --resume
 
-# 2. Train on a GPU (uploads the model when it's done)
+# 2. Train on a GPU 
 ./scripts/train_smolvla.sh
 
-# 3. Run it on the arm
-./scripts/deploy.sh "Pick up the pen and drop it on the plate"   # bare policy, one command
-
-# ...or the perception layer on top:
-python deploy_select.py pen                 # detect + grasp the pen
-python deploy_select.py pen --mask          # pick the pen out of a two-object scene
-python deploy_select.py bear --search --mask # pan to find the bear, then grasp it
-python voice_grasp.py                        # say "grab the pen"; Ctrl-C when it's placed
+# 3. Run
+./scripts/deploy.sh "Pick up the pen and drop it on the plate"   
+python deploy_select.py pen                 
+python deploy_select.py pen --mask          
+python deploy_select.py bear --search --mask 
+python voice_grasp.py                       
 ```
 
 `deploy_select.py` needs `openai-whisper` only for voice; the detector pulls in `transformers`
