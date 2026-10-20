@@ -112,24 +112,13 @@ a rented A100.
 - The earlier model (v1) was ~90 home start demos across three objects. It worked, but only grasped
   in the region those demos covered, which is what the v2 facing pose set fixed.
 
-## What works and what doesn't
-
-Works:
+What works:
 - It grabs the object you asked for, with a grip that suits it, from a spoken command.
 - **Across the whole workspace**, left to right, at 80 to 90%.
 - **Two objects at once.** It picks the one you named and ignores the other (detector + masking),
   even with several crowded close together.
 - **Off-screen objects.** It pans around to find the object, centers on it, then grasps.
 - It runs by itself on the laptop.
-
-Next Steps
-- **Rubber grips.** The main problem is grabbing anything with a smooth or plastic surface. The
-  gripper loses its hold, and the fix is rubber pads on the gripper's fingers. 
-- **The pen on the far left** can hesitate for a moment before it commits (it is thin, so it centers
-  a touch less precisely), then it grabs. Tightening the search centering smooths it.
-- **One camera.** The wrist camera loses sight of the object right at the end of the reach, so the
-  grab gets less precise near the edges of the workspace. A second camera would also help with
-  dynamic situations, where the drop-off zone is moving and so is the object.
 
 ## What's in this repo
 
@@ -173,22 +162,21 @@ python voice_grasp.py
 ```
 
 `deploy_select.py` needs `openai-whisper` only for voice; the detector pulls in `transformers`
-(OWLv2). The detector runs on CPU on purpose so it doesn't fight the policy for the laptop GPU.
-
-## A couple of decisions
-
-- **Imitation learning instead of RL,** because copying a few demonstrations is way more practical
-  on a real arm than millions of trial-and-error attempts that felt like they werent really going anywhere.
-- **Fine-tuning a pretrained model instead of one model per object,** so adding a new object takes a
-  lot less data and it allows the robot to be able to become a little more comfortable in new situations.
-- **Getting one object at one spot rock solid first,** then position, then the command, instead of
-  trying to do all of it at once, it just created for a smoother pipeline that I could then execute and understand.
+(OWLv2).
 
 ## What's next
 
 Done since the first version: voice, telling two objects apart, panning to find an off-screen
 object, and grasping across the whole workspace (a fresh facing-pose dataset). Still ahead:
 
-1. Keeping track of the object if I move it mid-reach.
-2. Handing the object to my hand instead of dropping it on the mat. This one needs a second camera,
+-  Keeping track of the object if I move it mid-reach.
+-  Handing the object to my hand instead of dropping it on the mat. This one needs a second camera,
    since the wrist camera is blind to anything but the object once the gripper closes on it.
+   Next Steps
+- Rubber grips. The main problem is grabbing anything with a smooth or plastic surface. The
+  gripper loses its hold, and the fix is rubber pads on the gripper's fingers. 
+- The pen on the far left can hesitate for a moment before it commits (it is thin, so it centers
+  a touch less precisely), then it grabs. Tightening the search centering smooths it.
+- One camera. The wrist camera loses sight of the object right at the end of the reach, so the
+  grab gets less precise near the edges of the workspace. A second camera would also help with
+  dynamic situations, where the drop-off zone is moving and so is the object.
