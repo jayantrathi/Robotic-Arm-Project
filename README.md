@@ -1,5 +1,4 @@
 
-
 # Voice Controlled Robotic Arm
 
 I built a robot arm that picks up the object you ask it for. You can say ("grab the pen") and it finds the object, grabs it, and drops it on the coaster. It can pick the right
@@ -72,8 +71,7 @@ I did this in stages:
 **Started in a simulator.** My first attempt was reinforcement learning in sim. It was slow and a
 pain to get anywhere with, so I gave up on it and switched to imitation learning.
 
-**Ran it.** The trained model drives the arm on its own from a command. The full run is up top. Here is a shorter clip of it in action:
-
+**Ran it.** The trained model drive
 <div align="center">
   <video src="https://github.com/user-attachments/assets/726b167d-a6dd-4802-8a17-194a013c16bf" width="320" controls muted></video>
 </div>
@@ -98,7 +96,9 @@ different objects and positions so the model had some variety to work with when 
 fine-tuned SmolVLA model for the version that actually understands what I'm saying. Training ran on
 a rented A100.
 
-<!-- drag your training timelapse mp4 here in GitHub's web editor -->
+https://github.com/user-attachments/assets/015e5c92-060a-469a-b5af-f82ff2e4684b
+
+
 
 ## The setup
 
