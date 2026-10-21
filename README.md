@@ -1,4 +1,3 @@
-
 # Voice Controlled Robotic Arm
 
 I built a robot arm that picks up the object you ask it for. You can say ("grab the pen") and it finds the object, grabs it, and drops it on the coaster. It can pick the right
@@ -8,7 +7,7 @@ camera's view it will pan around to look for it first. The arm is a SO-101, driv
 
 
 <div align="center">
-  <video src="https://github.com/jayantrathi/Robotic-Arm-Project/raw/main/full-demo.mp4" width="320" controls muted></video>
+  <video src="[https://github.com/jayantrathi/Robotic-Arm-Project/raw/main/full-demo.mp4](https://github.com/user-attachments/assets/07073821-b06c-42dd-9f3c-4a6caee1f7b7)" width="320" controls muted></video>
 </div>
 
 [Model](https://huggingface.co/jayantrathi/smolvla_lang_grasp_v2) ·
