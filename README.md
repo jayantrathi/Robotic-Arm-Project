@@ -9,7 +9,7 @@ camera's view it will pan around to look for it first. The arm is a SO-101, driv
   then drag full-demo.mp4 onto this line. GitHub uploads it and fills in the URL automatically.
 -->
 <div align="center">
-  <video src="REPLACE_WITH_full-demo.mp4_UPLOAD" width="320" controls muted></video>
+  <video src="full-demo.mp4" width="320" controls muted></video>
 </div>
 
 [Model](https://huggingface.co/jayantrathi/smolvla_lang_grasp_v2) ·
