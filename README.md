@@ -7,8 +7,7 @@ camera's view it will pan around to look for it first. The arm is a SO-101, driv
 
 
 <div align="center">
-  <video src="https://github.com/jayantrathi/Robotic-Arm-Project/raw/main/full-demo.mp4" width="320" controls muted></video>
-  
+  <video src="https://github.com/user-attachments/assets/015e5c92-060a-469a-b5af-f82ff2e4684b" width="320" controls muted></video>
 </div>
 
 [Model](https://huggingface.co/jayantrathi/smolvla_lang_grasp_v2) ·
