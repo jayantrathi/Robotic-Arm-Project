@@ -1,13 +1,13 @@
+
+
 # Voice Controlled Robotic Arm
 
 I built a robot arm that picks up the object you ask it for. You can say ("grab the pen") and it finds the object, grabs it, and drops it on the coaster. It can pick the right
 object out of a scene with several objects, and if the thing you asked for isn't even in the
 camera's view it will pan around to look for it first. The arm is a SO-101, driven by a vision-language model I fine tuned, and all of it runs on my laptop.
 
-<!--
-  HERO: FULL DEMO goes here. In GitHub's web editor, delete this comment and the <div> below,
-  then drag full-demo.mp4 onto this line. GitHub uploads it and fills in the URL automatically.
--->
+
+
 <div align="center">
   <video src="full-demo.mp4" width="320" controls muted></video>
 </div>
