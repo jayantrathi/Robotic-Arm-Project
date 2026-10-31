@@ -30,10 +30,12 @@ class MaskingThreadSafeRobot(AutoStopRobot):
         protect_bottom: float = 0.35,
         protect_width: float = 0.60,
         initial_distractors: list[Box] | None = None,
+        overlay: bool = True,
         **autostop_cfg,
     ):
         super().__init__(robot, **autostop_cfg)
         self._detector = detector
+        self._overlay = overlay
         self._target = target
         self._candidates = candidates
         self._camera_key = camera_key
@@ -77,13 +79,27 @@ class MaskingThreadSafeRobot(AutoStopRobot):
                 try:
                     dets = self._detector.detect(frame, self._candidates, threshold=self._threshold)
                     best: dict[str, Box] = {}
+                    target_item = None
+                    other_items = []
+                    seen: set[str] = set()
                     for d in dets:
                         if d.label == self._target:
+                            if target_item is None:
+                                target_item = (d.box, f"{d.label} {d.score:.2f}")
                             continue
                         best.setdefault(d.label, d.box)
+                        if d.label not in seen:
+                            seen.add(d.label)
+                            other_items.append((d.box, f"{d.label} {d.score:.2f}"))
                     with self._state_lock:
                         self._distractors = list(best.values())
                         self._ts = time.time()
+                    if self._overlay:
+                        try:
+                            from overlay import annotate, log_overlay
+                            log_overlay(annotate(frame, target=target_item, others=other_items))
+                        except Exception:
+                            pass
                 except Exception as e:
                     print(f"[masking_robot] detector error: {e}")
             sleep = self._period - (time.time() - t0)

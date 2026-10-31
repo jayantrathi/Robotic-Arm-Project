@@ -34,6 +34,32 @@ PAN_HOME = 39.0
 PAN_SWEEP = list(range(80, -56, -12))
 SETTLE_S = 0.4
 
+PREVIEW = True
+DISPLAY_MODE = "rerun"
+_preview_ready = False
+
+
+def _start_preview():
+    global _preview_ready
+    if not PREVIEW or _preview_ready:
+        return
+    try:
+        from lerobot.utils.visualization_utils import init_visualization
+        init_visualization(DISPLAY_MODE, session_name="rollout")
+        _preview_ready = True
+    except Exception as e:
+        print(f"[search] preview off: {e}")
+
+
+def _log_preview(obs):
+    if not _preview_ready:
+        return
+    try:
+        from lerobot.utils.visualization_utils import log_visualization_data
+        log_visualization_data(DISPLAY_MODE, observation=obs)
+    except Exception:
+        pass
+
 
 def _clamp(key, val):
     lo, hi = SAFE[key]
@@ -52,6 +78,8 @@ def move_to(robot, target: dict, steps: int = 30, dt: float = 0.05) -> None:
         a = i / steps
         cmd = {k: (1 - a) * start.get(k, v) + a * v for k, v in target.items()}
         robot.send_action(cmd)
+        if _preview_ready:
+            _log_preview(robot.get_observation())
         time.sleep(dt)
 
 
@@ -72,10 +100,21 @@ def build_robot():
 def _detect_at(robot, detector, target, candidates, threshold):
     time.sleep(SETTLE_S)
     obs = robot.get_observation()
+    _log_preview(obs)
     frame = obs.get(CAMERA_KEY)
     if frame is None:
         return None
-    return detector.select(frame, target, candidates=candidates, threshold=threshold)
+    sel = detector.select(frame, target, candidates=candidates, threshold=threshold)
+    if _preview_ready:
+        try:
+            from overlay import annotate, log_overlay
+            tgt = (sel.box, f"{target} {sel.score:.2f}") if (sel and sel.found and sel.box) else None
+            others = [(d.box, f"{d.label} {d.score:.2f}")
+                      for d in (sel.all_detections or []) if not (sel.found and d.box == sel.box)]
+            log_overlay(annotate(frame, target=tgt, others=others))
+        except Exception:
+            pass
+    return sel
 
 
 def _center_on(robot, detector, target, candidates, threshold, pan, tol_px=55, max_iter=5) -> float:
@@ -114,6 +153,7 @@ def _center_on(robot, detector, target, candidates, threshold, pan, tol_px=55, m
 
 
 def search_for(robot, detector, target, candidates, threshold=0.18):
+    _start_preview()
     print("[search] moving to scan pose...")
     move_to(robot, {**SCAN_POSE, "shoulder_pan.pos": PAN_HOME})
 
@@ -138,9 +178,9 @@ def main() -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument("object")
     ap.add_argument("--threshold", type=float, default=0.18)
+    ap.add_argument("--detector", choices=["owlv2", "roboflow"], default="owlv2")
     args = ap.parse_args()
 
-    from detector import ObjectDetector
     from objects import REGISTRY, all_detect_labels, resolve
 
     obj = resolve(args.object) or REGISTRY.get(args.object.lower())
@@ -150,8 +190,14 @@ def main() -> int:
     detect_target = obj.detect[0]
     candidates = all_detect_labels()
 
-    print("Loading detector (cpu)...")
-    detector = ObjectDetector(device="cpu")
+    if args.detector == "roboflow":
+        print("Loading Roboflow detector (hosted)...")
+        from roboflow_detector import RoboflowDetector
+        detector = RoboflowDetector()
+    else:
+        print("Loading OWLv2 detector (cpu)...")
+        from detector import ObjectDetector
+        detector = ObjectDetector(device="cpu")
 
     print("Connecting robot...")
     robot = build_robot()

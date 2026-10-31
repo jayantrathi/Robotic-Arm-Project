@@ -15,6 +15,7 @@ WHISPER_MODEL = "base"
 PYTHON = sys.executable
 DEPLOY = os.path.join(os.path.dirname(__file__), "deploy_select.py")
 USE_MASK = True
+USE_SEARCH = True
 
 
 def record_command(model) -> str:
@@ -32,6 +33,8 @@ def record_command(model) -> str:
 
 def run_arm(object_name: str) -> None:
     cmd = [PYTHON, DEPLOY, object_name]
+    if USE_SEARCH:
+        cmd.append("--search")
     if USE_MASK:
         cmd.append("--mask")
     print(f'\nGrasping: "{object_name}"\n')

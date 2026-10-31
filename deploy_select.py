@@ -66,6 +66,9 @@ def main() -> int:
     ap.add_argument("--search", action="store_true", help="pan to find the object if it's not in view")
     ap.add_argument("--duration", type=int, default=DEFAULT_DURATION)
     ap.add_argument("--threshold", type=float, default=0.15)
+    ap.add_argument("--detector", choices=["owlv2", "roboflow"], default="owlv2")
+    ap.add_argument("--rf-model", default=None, help="Roboflow model id (or ROBOFLOW_MODEL)")
+    ap.add_argument("--rf-version", default=None, help="Roboflow version (or ROBOFLOW_VERSION)")
     ap.add_argument("--detector-device", default="cpu", help="cpu keeps it off the policy's GPU")
     ap.add_argument("--force", action="store_true", help="run even if the object isn't found")
     ap.add_argument("--auto-stop", action="store_true", help="experimental: stop when the arm returns home")
@@ -84,9 +87,14 @@ def main() -> int:
     candidates = all_detect_labels()
     print(f"Target: {obj.name!r}  (detect as {detect_target!r})  ->  task: {obj.task!r}")
 
-    print(f"Loading detector on {args.detector_device}...")
-    from detector import ObjectDetector
-    detector = ObjectDetector(device=args.detector_device)
+    if args.detector == "roboflow":
+        print("Loading Roboflow detector (hosted)...")
+        from roboflow_detector import RoboflowDetector
+        detector = RoboflowDetector(model_id=args.rf_model, version=args.rf_version)
+    else:
+        print(f"Loading OWLv2 detector on {args.detector_device}...")
+        from detector import ObjectDetector
+        detector = ObjectDetector(device=args.detector_device)
 
     found_pan = None
     if args.search:

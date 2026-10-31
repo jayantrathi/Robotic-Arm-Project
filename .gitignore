@@ -7,3 +7,8 @@ outputs/
 perception/testframes/
 perception/annotated/
 perception/live/
+
+# roboflow dataset staging (extracted frames + labels before upload)
+rf_dataset/
+
+.env
