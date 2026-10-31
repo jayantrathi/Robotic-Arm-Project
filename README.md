@@ -30,6 +30,28 @@ three things the policy couldn't on its own:
   of the camera feed, so the policy sees the clean single object scene it's good at, with no retraining.
 - If the object isn't in view, the arm pans to find it and centers on it before grasping.
 
+**Picking the right object.** 
+The detector that chooses which object started on a generic open-vocabulary model (OWLv2). I trained my own on Roboflow (RF-DETR) for these four objects, and it
+drops into the same spot in the pipeline. On a held-out test set it picks the right object every
+time, where the generic model missed a third of them, mostly the headphone case:
+
+| Detector | Right object picked |
+| --- | :---: |
+| OWLv2 (generic) | 42 / 60 · 70% |
+| RF-DETR (trained) | **60 / 60 · 100%** |
+
+| Object | OWLv2 | RF-DETR |
+| --- | :---: | :---: |
+| pen | 13 / 15 | **15 / 15** |
+| teddy bear | 11 / 13 | **13 / 13** |
+| lip balm | 12 / 16 | **16 / 16** |
+| headphone case | 6 / 16 | **16 / 16** |
+
+<div align="center">
+  <img src="media/detector_compare/detector_compare.png" width="720">
+</div>
+
+
 ## Results
 
 Measured on the real arm. **20 trials per condition**, object position varied every trial. Success
