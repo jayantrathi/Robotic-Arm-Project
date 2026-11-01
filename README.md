@@ -48,7 +48,7 @@ time, where the generic model missed a third of them, mostly the headphone case:
 | headphone case | 6 / 16 | **16 / 16** |
 
 <div align="center">
-  <img src="media/detector_compare/detector_compare.png" width="720">
+  <img src="media/detector_compare/detector_compare_grid.png" width="820">
 </div>
 
 
