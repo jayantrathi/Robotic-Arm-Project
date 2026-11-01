@@ -8,7 +8,7 @@ camera's view it will pan around to look for it first. The arm is a SO-101, driv
 
 
 <div align="center">
-  <video src="https://github.com/user-attachments/assets/10f2dd63-65c1-4bc8-bd47-9c5dddb8c41e" width="320" controls muted></video>
+  <video src="https://github.com/user-attachments/assets/4a2a8d33-ba56-4e5b-893d-c53eb28ed177" width="320" controls muted></video>
 </div>
 
 [Model](https://huggingface.co/jayantrathi/smolvla_lang_grasp_v2) ·
