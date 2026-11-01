@@ -13,6 +13,7 @@ camera's view it will pan around to look for it first. The arm is a SO-101, driv
 
 [Model](https://huggingface.co/jayantrathi/smolvla_lang_grasp_v2) ·
 [Dataset](https://huggingface.co/datasets/jayantrathi/lang_grasp_v2) ·
+[Detector (Roboflow)](https://universe.roboflow.com/jayants-workspace-mbbme/so101-objectdetection) ·
 [How to run it](#running-it-yourself)
 
 ## What it does
