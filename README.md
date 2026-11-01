@@ -22,7 +22,7 @@ and drops it on the coaster. It handles a handful of objects, and the object can
 camera can see it, not just one specific spot. Everything runs on my laptop. The only thing that
 needed a real GPU was training.
 
-On top of the core grasp policy I added a perception layer (an open vocabulary detector) that does
+On top of the core grasp policy I added a perception layer (an object detector) that does
 three things the policy couldn't on its own:
 
 - `voice_grasp.py` turns a spoken command into the same instruction with Whisper.
@@ -30,10 +30,12 @@ three things the policy couldn't on its own:
   of the camera feed, so the policy sees the clean single object scene it's good at, with no retraining.
 - If the object isn't in view, the arm pans to find it and centers on it before grasping.
 
-**Picking the right object.** 
-The detector that chooses which object started on a generic open-vocabulary model (OWLv2). I trained my own on Roboflow (RF-DETR) for these four objects, and it
-drops into the same spot in the pipeline. On a held-out test set it picks the right object every
-time, where the generic model missed a third of them, mostly the headphone case:
+**Picking the right object was the bottleneck.**
+The detector that chooses which object started on a generic open-vocabulary model (OWLv2). It
+missed about a third of the time, mostly the headphone case, and because selection sits in front of
+everything else, those misses dragged the whole task down. So I trained my own detector on Roboflow
+(RF-DETR) for these four objects and dropped it into the same spot in the pipeline. On a held-out
+test set it picks the right object every time:
 
 | Detector | Right object picked |
 | --- | :---: |
@@ -51,14 +53,27 @@ time, where the generic model missed a third of them, mostly the headphone case:
   <img src="media/detector_compare/detector_compare_grid.png" width="820">
 </div>
 
+Fixing selection is what moved the whole system, not just the detector's own score. See the
+end-to-end numbers below.
+
 
 ## Results
 
 Measured on the real arm. **20 trials per condition**, object position varied every trial. Success
 is the named object ending up on the plate.
 
-Two headline jumps: **picking the right object in a two object scene went 25% → 85%**, and
-**off-angle grasping went from 0/20 on the left to ~85% everywhere** after a fresh dataset.
+**The headline: end-to-end task success across all four objects went from 50-65% to 80-90%.**
+Nothing about the grasp policy changed between those two numbers. The generic OWLv2 detector was
+mis-picking the object often enough to cap the whole pipeline in the low 60s. Swapping in the
+Roboflow-trained RF-DETR (100% selection) removed that ceiling, and the full task now lands at
+80-90% across every object. Selection was the bottleneck, so fixing selection moved everything.
+
+| Pipeline | End-to-end task success, all objects |
+| --- | :---: |
+| Generic detector (OWLv2) | 50-65% |
+| Trained detector (RF-DETR) | **80-90%** |
+
+The rest of this section is the components that add up to that.
 
 **Two objects in frame, pick the one I asked for** (detector + masking):
 
@@ -92,7 +107,15 @@ I did this in stages:
 **Started in a simulator.** My first attempt was reinforcement learning in sim. It was slow and a
 pain to get anywhere with, so I gave up on it and switched to imitation learning.
 
-**Ran it.** The trained model drive
+**Early attempts fumbled.** The first policies on the real arm reached and lined up but dropped a
+lot of grabs. Leaving one of those clips in here on purpose, because the clean runs above are what
+came out the other side of it.
+
+<div align="center">
+  <video src="REPLACE_WITH_FUMBLE_CLIP_URL" width="320" controls muted></video>
+</div>
+
+**Ran it.** The trained model driving the real arm.
 <div align="center">
   <video src="https://github.com/user-attachments/assets/726b167d-a6dd-4802-8a17-194a013c16bf" width="320" controls muted></video>
 </div>
@@ -117,8 +140,9 @@ different objects and positions so the model had some variety to work with when 
 fine-tuned SmolVLA model for the version that actually understands what I'm saying. Training ran on
 a rented A100.
 
-
-
+**Fixed the bottleneck.** Once grasping was solid, the thing still failing was picking the right
+object in a crowded scene. I measured it, found the generic detector was the weak link, trained my
+own on Roboflow, and end-to-end success jumped from the low 60s to the high 80s.
 
 
 ## The setup
@@ -128,6 +152,8 @@ a rented A100.
 - **Model:** SmolVLA, a 450M-parameter vision-language-action model, fine tuned from the base
   checkpoint. It takes the camera image, the arm's joint positions, and the command, and spits out
   the next moves.
+- **Detector:** RF-DETR, trained on Roboflow on my four objects, running in front of the policy to
+  choose and isolate the named object.
 
 ## Training details
 
@@ -157,7 +183,7 @@ requirements.txt            dependencies
 deploy_select.py            grasp a named object: detect -> (search) -> (mask) -> grasp
 voice_grasp.py              voice control (mic -> Whisper -> deploy_select)
 perception/
-  detector.py               open-vocabulary object detector (OWLv2)
+  detector.py               object detector (RF-DETR trained on Roboflow; OWLv2 was the earlier generic version)
   objects.py                the objects it knows (detect label <-> command <-> aliases)
   masking_robot.py          blur the other objects out of the policy's camera feed
   search.py                 pan the arm to find an off-screen object, center on it
@@ -190,22 +216,20 @@ python deploy_select.py bear --search --mask
 python voice_grasp.py                       
 ```
 
-`deploy_select.py` needs `openai-whisper` only for voice; the detector pulls in `transformers`
-(OWLv2).
+`deploy_select.py` needs `openai-whisper` only for voice. The detector uses my Roboflow-trained
+RF-DETR.
 
 ## What's next
 
 Done since the first version: voice, telling two objects apart, panning to find an off-screen
-object, and grasping across the whole workspace (a fresh facing-pose dataset). Still ahead:
+object, grasping across the whole workspace (a fresh facing-pose dataset), and training a dedicated
+detector that took end-to-end success from the low 60s to the high 80s. Still ahead:
 
--  Keeping track of the object if I move it mid-reach.
--  Handing the object to my hand instead of dropping it on the mat. This one needs a second camera,
-   since the wrist camera is blind to anything but the object once the gripper closes on it.
-   Next Steps
+- A second fixed camera, now added, to open up the two things the single wrist camera can't do:
+- Keeping track of the object if I move it mid-reach.
+- Handing the object to my hand instead of dropping it on the mat. The wrist camera is blind to
+  anything but the object once the gripper closes, so this needs the second camera's fixed view.
 - Rubber grips. The main problem is grabbing anything with a smooth or plastic surface. The
-  gripper loses its hold, and the fix is rubber pads on the gripper's fingers. 
+  gripper loses its hold, and the fix is rubber pads on the gripper's fingers.
 - The pen on the far left can hesitate for a moment before it commits (it is thin, so it centers
   a touch less precisely), then it grabs. Tightening the search centering smooths it.
-- One camera. The wrist camera loses sight of the object right at the end of the reach, so the
-  grab gets less precise near the edges of the workspace. A second camera would also help with
-  dynamic situations, where the drop-off zone is moving and so is the object.
