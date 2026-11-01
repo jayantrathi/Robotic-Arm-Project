@@ -66,8 +66,17 @@ class RoboflowDetector(BaseDetector):
         api_url: str | None = None,
         workspace: str | None = None,
         workflow_id: str | None = None,
+        local_url: str | None = None,
         device: str | None = None,  # ignored; hosted inference. kept for interface parity
     ):
+        # Local mode: talk HTTP to rf_local_server.py (RF-DETR runs on-device in a
+        # separate venv). Nothing else is needed here; the server holds the model + key.
+        self.local_url = (local_url or _env("ROBOFLOW_LOCAL_URL"))
+        if self.local_url:
+            self.local_url = self.local_url.rstrip("/")
+            self.use_workflow = False
+            return
+
         model_id = model_id or _env("ROBOFLOW_MODEL")
         version = version or _env("ROBOFLOW_VERSION")
         api_key = api_key or _env("ROBOFLOW_API_KEY")
@@ -89,23 +98,27 @@ class RoboflowDetector(BaseDetector):
                 raise ValueError("Serverless mode needs ROBOFLOW_MODEL and ROBOFLOW_VERSION.")
             self.endpoint = f"{api_url}/{model_id}/{version}"
 
-    def _jpeg_b64(self, image) -> str | None:
+    def _jpeg_bytes(self, image):
         import cv2
 
         arr = np.ascontiguousarray(image)
         ok, buf = cv2.imencode(".jpg", arr[:, :, ::-1])
-        if not ok:
-            return None
-        return base64.b64encode(buf).decode("ascii")
+        return buf.tobytes() if ok else None
 
     def detect(self, image, labels: list[str], threshold: float = 0.10) -> list[Detection]:
         import requests
 
-        payload = self._jpeg_b64(image)
-        if payload is None:
+        jpeg = self._jpeg_bytes(image)
+        if jpeg is None:
             return []
 
-        if self.use_workflow:
+        if self.local_url:
+            resp = requests.post(f"{self.local_url}/detect", data=jpeg,
+                                 headers={"Content-Type": "application/octet-stream"}, timeout=10)
+            resp.raise_for_status()
+            preds = resp.json().get("predictions", [])
+        elif self.use_workflow:
+            payload = base64.b64encode(jpeg).decode("ascii")
             resp = requests.post(
                 self.endpoint,
                 json={"api_key": self.api_key,
@@ -115,6 +128,7 @@ class RoboflowDetector(BaseDetector):
             resp.raise_for_status()
             preds = list(_iter_preds(resp.json().get("outputs", resp.json())))
         else:
+            payload = base64.b64encode(jpeg).decode("ascii")
             resp = requests.post(
                 self.endpoint,
                 params={"api_key": self.api_key},
