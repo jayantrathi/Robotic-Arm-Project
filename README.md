@@ -110,12 +110,7 @@ I did this in stages:
 pain to get anywhere with, so I gave up on it and switched to imitation learning.
 
 **Early attempts fumbled.** The first policies on the real arm reached and lined up but dropped a
-lot of grabs. Leaving one of those clips in here on purpose, because the clean runs above are what
-came out the other side of it.
-
-<div align="center">
-  <video src="REPLACE_WITH_FUMBLE_CLIP_URL" width="320" controls muted></video>
-</div>
+lot of grabs. The clean runs above are what came out the other side of a lot of those.
 
 **Ran it.** The trained model driving the real arm.
 <div align="center">
